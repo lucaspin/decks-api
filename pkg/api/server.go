@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/lucaspin/decks-api/pkg/cards"
 	"github.com/lucaspin/decks-api/pkg/storage"
 )
 
@@ -18,11 +20,13 @@ type Server struct {
 	router     *mux.Router
 	httpServer *http.Server
 	storage    storage.Storage
+	generator  *cards.CardGenerator
 }
 
 func NewServer() *Server {
 	server := &Server{
-		storage: storage.NewStorage(),
+		storage:   storage.NewStorage(),
+		generator: cards.NewCardGenerator(),
 	}
 
 	server.InitRouter()
@@ -32,20 +36,32 @@ func NewServer() *Server {
 func (s *Server) InitRouter() {
 	basePath := "/api/v1alpha"
 	s.router = mux.NewRouter().StrictSlash(true)
-	s.router.HandleFunc("/", s.HealthCheck).Methods(http.MethodGet)
 	s.router.HandleFunc(basePath+"/decks", s.CreateDeck).Methods(http.MethodPost)
 	s.router.HandleFunc(basePath+"/decks/{deck_id}", s.OpenDeck).Methods(http.MethodGet)
+	s.router.HandleFunc("/", s.HealthCheck).Methods(http.MethodGet)
 }
 
 func (s *Server) CreateDeck(w http.ResponseWriter, r *http.Request) {
-	deck, err := s.storage.Create(r.Context())
-	if err == nil {
-		response := newCreateDeckResponse(deck)
-		respondWithJSON(w, http.StatusCreated, &response)
+	queryParams := r.URL.Query()
+	shuffled := queryParams.Get("shuffled") == "true"
+	list, err := s.generator.NewListWithConfig(cards.GeneratorConfig{
+		Shuffled: shuffled,
+		Codes:    queryParams.Get("cards"),
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	http.Error(w, err.Error(), http.StatusBadRequest)
+	deck, err := s.storage.Create(r.Context(), list, shuffled)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := newCreateDeckResponse(deck)
+	respondWithJSON(w, http.StatusCreated, &response)
 }
 
 func (s *Server) OpenDeck(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +95,8 @@ func (s *Server) HealthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) Serve(host string, port int) error {
+	log.Printf("Starting server on %s:%d\n", host, port)
+
 	s.httpServer = &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", host, port),
 		ReadTimeout:  5 * time.Second,

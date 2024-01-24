@@ -21,7 +21,7 @@ func (d *Deck) Remaining() int {
 }
 
 type Storage interface {
-	Create(ctx context.Context) (*Deck, error)
+	Create(ctx context.Context, cards []cards.Card, shuffled bool) (*Deck, error)
 	Get(ctx context.Context, deckID *uuid.UUID) (*Deck, error)
 }
 

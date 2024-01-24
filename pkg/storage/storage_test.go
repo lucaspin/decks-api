@@ -5,30 +5,26 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/lucaspin/decks-api/pkg/cards"
 	"github.com/stretchr/testify/require"
 )
 
 func Test__InMemoryStorage(t *testing.T) {
 	storage := NewInMemoryStorage()
 
-	t.Run("create returns new deck", func(t *testing.T) {
-		deck, err := storage.Create(context.Background())
-		require.NoError(t, err)
-		require.NotNil(t, deck)
-		require.NotNil(t, deck.DeckID)
-		require.False(t, deck.Shuffled)
-		require.Equal(t, 52, deck.Remaining())
-		require.Len(t, deck.Cards, 52)
-	})
-
-	t.Run("get returns not found", func(t *testing.T) {
+	t.Run("get with deck that does not exist -> ErrDeckNotFound error", func(t *testing.T) {
 		ID := uuid.New()
 		_, err := storage.Get(context.Background(), &ID)
 		require.ErrorIs(t, err, ErrDeckNotFound)
 	})
 
-	t.Run("get returns not found", func(t *testing.T) {
-		d1, err := storage.Create(context.Background())
+	t.Run("get with existing deck -> returns deck", func(t *testing.T) {
+		cards := []cards.Card{
+			{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)},
+			{Suit: cards.CardSuitDiamonds, Rank: cards.CardRank(8)},
+		}
+
+		d1, err := storage.Create(context.Background(), cards, false)
 		require.NoError(t, err)
 
 		d2, err := storage.Get(context.Background(), d1.DeckID)
