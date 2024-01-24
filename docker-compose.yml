@@ -1,0 +1,14 @@
+version: '3.6'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    tty: true
+    environment: {}
+    volumes:
+      - go-pkg-cache:/go
+      - .:/app
+volumes:
+  go-pkg-cache:
+    driver: local
