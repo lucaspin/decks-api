@@ -35,3 +35,33 @@ func (s *InMemoryStorage) Get(ctx context.Context, deckID *uuid.UUID) (*Deck, er
 
 	return &deck, nil
 }
+
+func (s *InMemoryStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) ([]cards.Card, error) {
+	deck, ok := s.decks[deckID.String()]
+	if !ok {
+		return nil, ErrDeckNotFound
+	}
+
+	if len(deck.Cards) == 0 {
+		return nil, ErrEmptyDeck
+	}
+
+	if len(deck.Cards) < count {
+		return nil, ErrNotEnoughCardsInDeck
+	}
+
+	// gather cards
+	cards := make([]cards.Card, count)
+	for i := 0; i < count; i++ {
+		cards[i] = deck.Cards[i]
+	}
+
+	// remove cards from deck
+	s.decks[deckID.String()] = Deck{
+		DeckID:   deckID,
+		Shuffled: deck.Shuffled,
+		Cards:    deck.Cards[count:],
+	}
+
+	return cards, nil
+}

@@ -71,6 +71,7 @@ func Test__OpenDeck(t *testing.T) {
 	t.Run("invalid deck ID -> 400", func(t *testing.T) {
 		response := execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/not-a-valid-uuid", nil)
 		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid deck ID\n")
 	})
 
 	t.Run("deck that does not exist -> 404", func(t *testing.T) {
@@ -92,6 +93,58 @@ func Test__OpenDeck(t *testing.T) {
 		openResponse := &OpenDeckResponse{}
 		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
 		require.Equal(t, createResponse.DeckID.String(), openResponse.DeckID.String())
+		require.False(t, openResponse.Shuffled)
+		require.Equal(t, openResponse.Remaining, len(openResponse.Cards))
+		requireFullUnshuffledDeck(t, openResponse.Cards)
+	})
+}
+
+func Test__DrawCards(t *testing.T) {
+	testServer := NewServer()
+
+	t.Run("invalid deck ID -> 400", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/not-a-valid-uuid/draw?count=1", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid deck ID\n")
+	})
+
+	t.Run("deck that does not exist -> 404", func(t *testing.T) {
+		ID := uuid.New()
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+ID.String()+"/draw?count=1", nil)
+		require.Equal(t, response.Code, 404)
+	})
+
+	t.Run("negative count -> 400", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=-1", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "count must be positive\n")
+	})
+
+	t.Run("invalid count -> 400", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=not-a-number", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid count\n")
+	})
+
+	t.Run("missing count -> 400", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "count is required\n")
+	})
+
+	t.Run("deck that exists -> 200 with proper response", func(t *testing.T) {
+		// deck is created
+		deckID := createDeck(t, testServer)
+
+		// deck is opened
+		response := execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		openResponse := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
+		require.Equal(t, deckID, openResponse.DeckID.String())
 		require.False(t, openResponse.Shuffled)
 		require.Equal(t, openResponse.Remaining, len(openResponse.Cards))
 		requireFullUnshuffledDeck(t, openResponse.Cards)
@@ -131,4 +184,12 @@ func execRequest(server *Server, method, path string, body interface{}) *httptes
 	rr := httptest.NewRecorder()
 	server.router.ServeHTTP(rr, req)
 	return rr
+}
+
+func createDeck(t *testing.T, server *Server) string {
+	response := execRequest(server, http.MethodPost, "/api/v1alpha/decks", nil)
+	require.Equal(t, response.Code, 201)
+	createResponse := &CreateDeckResponse{}
+	require.NoError(t, json.NewDecoder(response.Body).Decode(&createResponse))
+	return createResponse.DeckID.String()
 }
