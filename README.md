@@ -27,21 +27,26 @@ An HTTP API for managing decks of cards.
 
 ### With Docker
 
-If you have Docker and Docker Compose on your machine, you can start the server with the `make server.start` command. This command will start the server inside of a Docker container, exposing it through `localhost:4000`.
+If you have Docker and Docker Compose on your machine, you can start the server with the `make server.start` command. This command will start the server inside of a Docker container, and the server will be available on `localhost:4000`.
 
 You can also:
 - Stop the server with `make server.stop`
 - Inspect its logs with `make server.logs`
-
-By default, the in-memory storage implementation is used. If you want to use the Redis one, edit the `docker-compose.yml`, adding the `DECK_STORAGE_TYPE=redis` environment variable, and re-run `make server.start`.
+- Make the server start on a different by specifying the `API_PORT` environment variable in `docker-compose.yml`
 
 ### Without docker
 
 If you don't want to run the server with Docker, you can build it and run it directly:
 
-```
+```bash
 make build
 ./build/server
+```
+
+You can also specify a different port for the server to start:
+
+```bash
+API_PORT=8012 ./build/server
 ```
 
 Note: you'll need to have Go 1.21 installed on your machine.
