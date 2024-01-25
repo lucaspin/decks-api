@@ -70,7 +70,7 @@ There was no requirement about authentication on the task description, so I deci
 ### Creating a deck
 
 ```
-GET /api/v1alpha/decks
+POST /api/v1alpha/decks
 ```
 
 #### Parameters
