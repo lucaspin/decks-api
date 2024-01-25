@@ -26,7 +26,7 @@ func (g *CardGenerator) NewListWithConfig(config GeneratorConfig) ([]Card, error
 	if config.Codes == "" {
 		list = g.FullCardList()
 	} else {
-		l, err := g.NewCardListWithCodes(config.Codes)
+		l, err := CodesToCardList(strings.Split(config.Codes, ","))
 		if err != nil {
 			return nil, err
 		}
@@ -59,19 +59,4 @@ func (g *CardGenerator) Shuffle(list []Card) []Card {
 	}
 
 	return list
-}
-
-// Codes is a comma-separated list of codes
-func (g *CardGenerator) NewCardListWithCodes(codes string) ([]Card, error) {
-	cards := []Card{}
-	for _, code := range strings.Split(codes, ",") {
-		card, err := NewCardFromCode(strings.Trim(code, " "))
-		if err != nil {
-			return nil, err
-		}
-
-		cards = append(cards, *card)
-	}
-
-	return cards, nil
 }

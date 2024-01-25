@@ -24,9 +24,9 @@ type Server struct {
 	generator  *cards.CardGenerator
 }
 
-func NewServer() *Server {
+func NewServer(storage storage.Storage) *Server {
 	server := &Server{
-		storage:   storage.NewStorage(),
+		storage:   storage,
 		generator: cards.NewCardGenerator(),
 	}
 
@@ -125,7 +125,7 @@ func (s *Server) DrawCards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if errors.Is(err, storage.ErrEmptyDeck) || errors.Is(err, storage.ErrNotEnoughCardsInDeck) {
+	if errors.Is(err, storage.ErrEmptyDeck) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

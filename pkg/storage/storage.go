@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"errors"
+	"log"
+	"os"
 
 	"github.com/google/uuid"
 	"github.com/lucaspin/decks-api/pkg/cards"
@@ -10,7 +12,6 @@ import (
 
 var ErrDeckNotFound = errors.New("deck not found")
 var ErrEmptyDeck = errors.New("deck has no more cards")
-var ErrNotEnoughCardsInDeck = errors.New("not enough cards to draw")
 
 type Deck struct {
 	DeckID   *uuid.UUID
@@ -28,6 +29,12 @@ type Storage interface {
 	Draw(ctx context.Context, deckID *uuid.UUID, count int) ([]cards.Card, error)
 }
 
-func NewStorage() Storage {
-	return NewInMemoryStorage()
+func NewStorage() (Storage, error) {
+	switch os.Getenv("DECK_STORAGE_TYPE") {
+	case "redis":
+		return NewRedisStorage(nil)
+	default:
+		log.Printf("No DECK_STORAGE_TYPE set, using in-memory default\n")
+		return NewInMemoryStorage(), nil
+	}
 }

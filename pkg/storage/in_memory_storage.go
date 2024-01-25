@@ -7,6 +7,8 @@ import (
 	"github.com/lucaspin/decks-api/pkg/cards"
 )
 
+// An implementation of the Storage interface that keeps all decks in memory, good for local tests.
+// Note that all decks are lost when the server shuts down, so use appropriately.
 type InMemoryStorage struct {
 	decks map[string]Deck
 }
@@ -46,8 +48,9 @@ func (s *InMemoryStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int
 		return nil, ErrEmptyDeck
 	}
 
+	// We can only draw as many cards as there are in the deck.
 	if len(deck.Cards) < count {
-		return nil, ErrNotEnoughCardsInDeck
+		count = len(deck.Cards)
 	}
 
 	// gather cards

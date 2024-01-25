@@ -4,15 +4,15 @@ test:
 	docker-compose run --rm app gotestsum --format short-verbose --packages="./..." -- -p 1
 
 build:
-	docker-compose run --rm app bash -c 'rm -rf build && go build -o build/server main.go'
+	rm -rf build && go build -o build/server main.go
 
-start:
-	$(MAKE) stop
-	$(MAKE) build
+server.start:
+	$(MAKE) server.stop
+	docker-compose run --rm app bash -c 'rm -rf build && go build -o build/server main.go'
 	docker-compose up -d
 
-stop:
+server.stop:
 	docker-compose down
 
-logs:
+server.logs:
 	docker-compose logs app
