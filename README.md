@@ -6,6 +6,7 @@ An HTTP API for managing decks of cards.
 - [Running tests](#running-tests)
 - [Storage implementations](#storage-implementations)
 - [API](#api)
+  - [Authentication](#authentication)
   - [Creating a deck](#creating-a-deck)
     - [Parameters](#parameters)
     - [Responses](#responses)
@@ -56,6 +57,10 @@ The persistence of decks is done through the [Storage interface](./pkg/storage/s
 - **Redis**: a Redis one. Note that this implementation has a few caveats currently, explained in [here](./pkg/storage/redis_storage.go). To use it, set the `DECK_STORAGE_TYPE` to `redis`.
 
 ## API
+
+### Authentication
+
+There was no requirement about authentication on the task description, so I decided not to implement it. The API is currently behind no authentication. However, I did register a [auth middleware](./pkg/api/auth.go), so if authentication is needed, that would be a good place to put it.
 
 ### Creating a deck
 

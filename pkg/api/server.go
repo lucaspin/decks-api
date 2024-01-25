@@ -41,6 +41,7 @@ func (s *Server) InitRouter() {
 	s.router.HandleFunc(basePath+"/decks/{deck_id}", s.OpenDeck).Methods(http.MethodGet)
 	s.router.HandleFunc(basePath+"/decks/{deck_id}/draw", s.DrawCards).Methods(http.MethodPost)
 	s.router.HandleFunc("/", s.HealthCheck).Methods(http.MethodGet)
+	s.router.Use(authMiddleware)
 }
 
 func (s *Server) CreateDeck(w http.ResponseWriter, r *http.Request) {
