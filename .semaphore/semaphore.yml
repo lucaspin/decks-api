@@ -11,4 +11,8 @@ blocks:
       jobs:
         - name: 'Job #1'
           commands:
-            - echo hello
+            - mkdir /tmp/testing
+            - for i in {1..100}; do echo "hello $i" > /tmp/testing/$i.txt; done
+            - artifact push project /tmp/testing
+            - artifact push workflow /tmp/testing
+            - artifact push job /tmp/testing
