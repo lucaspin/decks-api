@@ -80,15 +80,6 @@ Errors from the storage layer are sentinel values (`storage.ErrDeckNotFound`, `s
 - Each deck is stored as two keys: `decks:{deckID}:cards` (a Redis list of card codes) and `decks:{deckID}:shuffled` (the shuffled flag).
 - Caveat: the operations are not atomic, so this backend is not safe when multiple requests touch the same deck concurrently. See the file header comment for details before relying on it.
 
-## API surface
-
-All routes below are handled in `pkg/api/server.go`. See [README.md](./README.md) for full request/response documentation - avoid duplicating it here.
-
-- `POST /api/v1alpha/decks` - create a deck
-- `GET /api/v1alpha/decks/{deck_id}` - open a deck
-- `POST /api/v1alpha/decks/{deck_id}/draw` - draw cards from a deck
-- `GET /` - health check
-
 ## Conventions & style
 
 - Standard Go formatting (`gofmt`).
