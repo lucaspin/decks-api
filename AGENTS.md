@@ -59,12 +59,26 @@ This runs `gotestsum` inside the `app` Docker container (see `docker-compose.yml
 
 ## Storage abstraction
 
-Persistence is done through the `storage.Storage` interface (`pkg/storage/storage.go`), with three methods: `Create`, `Get`, `Draw`. Two implementations are available, selected via the `DECK_STORAGE_TYPE` env var:
-
-- **in-memory** (`pkg/storage/in_memory_storage.go`) - the default. Decks are lost on restart.
-- **redis** (`pkg/storage/redis_storage.go`) - set `DECK_STORAGE_TYPE=redis`. Has known caveats documented in that file - read it before relying on this backend.
+Persistence is done through the `storage.Storage` interface (`pkg/storage/storage.go`), with three methods: `Create`, `Get`, `Draw`. The implementation is selected at startup by `storage.NewStorage()` based on the `DECK_STORAGE_TYPE` env var.
 
 Errors from the storage layer are sentinel values (`storage.ErrDeckNotFound`, `storage.ErrEmptyDeck`) checked with `errors.Is` and translated into HTTP status codes in `pkg/api/server.go`.
+
+### In-memory (`pkg/storage/in_memory_storage.go`)
+
+- The default when `DECK_STORAGE_TYPE` is unset or unrecognized.
+- Backed by a `map[string]Deck` guarded by no synchronization - intended for local development and tests.
+- Decks are lost when the server restarts.
+- Constructed with `NewInMemoryStorage()`; takes no configuration.
+
+### Redis (`pkg/storage/redis_storage.go`)
+
+- Selected by setting `DECK_STORAGE_TYPE=redis`.
+- Configured from the environment by `NewRedisConfigFromEnvironment()`:
+  - `REDIS_HOST` (required)
+  - `REDIS_PORT` (optional, defaults to `6379`)
+  - `REDIS_USERNAME` / `REDIS_PASSWORD` (optional)
+- Each deck is stored as two keys: `decks:{deckID}:cards` (a Redis list of card codes) and `decks:{deckID}:shuffled` (the shuffled flag).
+- Caveat: the operations are not atomic, so this backend is not safe when multiple requests touch the same deck concurrently. See the file header comment for details before relying on it.
 
 ## API surface
 
