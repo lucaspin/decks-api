@@ -33,6 +33,8 @@ func NewStorage() (Storage, error) {
 	switch os.Getenv("DECK_STORAGE_TYPE") {
 	case "redis":
 		return NewRedisStorage(nil)
+	case "postgres":
+		return NewPostgresStorage(nil)
 	default:
 		log.Printf("No DECK_STORAGE_TYPE set, using in-memory default\n")
 		return NewInMemoryStorage(), nil

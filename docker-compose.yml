@@ -8,11 +8,18 @@ services:
     command: "/app/build/server"
     depends_on:
       - redis
+      - postgres
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_USERNAME: ""
       REDIS_PASSWORD: ""
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: decks
+      POSTGRES_SSLMODE: disable
     ports:
       - 4000:4000
     volumes:
@@ -21,6 +28,13 @@ services:
   redis:
     image: redis:6.2.4-alpine
     container_name: 'redis'
+  postgres:
+    image: postgres:16-alpine
+    container_name: 'postgres'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: decks
 volumes:
   go-pkg-cache:
     driver: local

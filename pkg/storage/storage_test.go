@@ -94,6 +94,20 @@ var storageImplementations = map[string]StorageImplementation{
 			return NewRedisStorage(&RedisConfig{Host: "redis", Port: "6379"})
 		},
 	},
+	"postgres": {
+		CreateFn: func() (Storage, error) {
+			// Requires a postgres server to be available in this address.
+			// Created by docker compose. See docker-compose.yml.
+			return NewPostgresStorage(&PostgresConfig{
+				Host:     "postgres",
+				Port:     "5432",
+				User:     "postgres",
+				Password: "postgres",
+				Database: "decks",
+				SSLMode:  "disable",
+			})
+		},
+	},
 	"in-memory": {
 		CreateFn: func() (Storage, error) {
 			return NewInMemoryStorage(), nil

@@ -60,6 +60,15 @@ Tests are run with the `make test` command.
 The persistence of decks is done through the [Storage interface](./pkg/storage/storage.go). The current implementations available are:
 - **In-memory**: the default one. Keeps all the decks in memory. All the decks are lost if the server is shutdown.
 - **Redis**: a Redis one. Note that this implementation has a few caveats currently, explained in [here](./pkg/storage/redis_storage.go). To use it, set the `DECK_STORAGE_TYPE` to `redis`.
+- **Postgres**: a PostgreSQL one, explained in [here](./pkg/storage/postgres_storage.go). Unlike the Redis implementation, draws done through this backend are atomic, so it's safe to use with concurrent requests for the same deck. To use it, set `DECK_STORAGE_TYPE` to `postgres`, and configure the connection through the following environment variables:
+  - `POSTGRES_HOST` (**required**)
+  - `POSTGRES_PORT` (default: `5432`)
+  - `POSTGRES_USER` (default: `postgres`)
+  - `POSTGRES_PASSWORD` (default: empty)
+  - `POSTGRES_DB` (default: `decks`)
+  - `POSTGRES_SSLMODE` (default: `disable`)
+
+  The required tables are created automatically (with `CREATE TABLE IF NOT EXISTS`) the first time the storage is initialized, so no separate migration step is needed.
 
 ## API
 
