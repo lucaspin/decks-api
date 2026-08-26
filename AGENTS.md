@@ -60,6 +60,41 @@ contribution conventions, not on duplicating that documentation.
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`, `REDIS_PASSWORD` — used by the
   Redis storage implementation (see `docker-compose.yml` for local values).
 
+## Storage backends
+
+Persistence lives in `pkg/storage`. All backends implement the same
+`Storage` interface, and the active backend is chosen at startup.
+
+- Interface (`storage.go`): `Storage` exposes `Create`, `Get`, and `Draw`.
+  Shared types live here too — `Deck` (with `Remaining()`), and the sentinel
+  errors `ErrDeckNotFound` and `ErrEmptyDeck` that handlers map to `404`/`400`.
+- Selection (`storage.NewStorage()`): reads `DECK_STORAGE_TYPE`. `"redis"`
+  selects the Redis backend; any other value (or unset) falls back to the
+  in-memory backend.
+
+Available backends:
+
+- In-memory (`in_memory_storage.go`) — the default, built by
+  `NewInMemoryStorage()`. Keeps decks in a `map` in process. Simple and
+  dependency-free, but all decks are lost on restart and it is only intended
+  for local use/tests.
+- Redis (`redis_storage.go`) — opt-in, built by `NewRedisStorage(config)`.
+  Reads connection settings from `REDIS_HOST`, `REDIS_PORT`, `REDIS_USERNAME`,
+  and `REDIS_PASSWORD` when no config is passed. Each deck is stored as two
+  keys: `decks:{deckID}:cards` (a Redis list of card codes, drawn via `LPOP`)
+  and `decks:{deckID}:shuffled` (a flag). It is **not atomic and not safe for
+  concurrent access to the same deck** — see the comment at the top of
+  `redis_storage.go`; making it safe would require distributed locks or Lua
+  scripts. Don't treat it as production-hardened without addressing that.
+
+Adding a new backend:
+
+1. Implement the `Storage` interface (`Create`/`Get`/`Draw`), returning
+   `ErrDeckNotFound`/`ErrEmptyDeck` where appropriate so handlers keep their
+   status-code behavior.
+2. Wire it into `storage.NewStorage()` with a new `DECK_STORAGE_TYPE` value.
+3. Add tests in `storage_test.go` covering the new implementation.
+
 ## API surface
 
 - `POST /api/v1alpha/decks`
@@ -72,8 +107,8 @@ requests/responses.
 
 ## Conventions for making changes
 
-- New storage backends must implement `storage.Storage`
-  (`Create`/`Get`/`Draw`) and be wired into `storage.NewStorage()`.
+- New storage backends: see the [Storage backends](#storage-backends)
+  section above for the interface, selection, and steps to add one.
 - HTTP handlers live on `api.Server` in `pkg/api/server.go`. Register new
   routes in `InitRouter`, and follow existing status-code conventions:
   `400` for invalid input, `404` for not found, `500` for unknown/internal
@@ -95,9 +130,8 @@ requests/responses.
 
 ## Notes and caveats
 
-- The Redis storage implementation is explicitly non-atomic and not safe for
-  concurrent access to the same deck (see the comment at the top of
-  `pkg/storage/redis_storage.go`). Don't treat it as production-hardened
-  without addressing that.
+- The Redis storage backend is explicitly non-atomic and not safe for
+  concurrent access to the same deck — see the
+  [Storage backends](#storage-backends) section for details.
 - There is no authentication by design, not by omission — see
   `pkg/api/auth.go` and the README's Authentication section.
