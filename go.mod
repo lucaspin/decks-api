@@ -1,6 +1,6 @@
 module github.com/lucaspin/decks-api
 
-go 1.27
+go 1.26
 
 require (
 	github.com/go-redis/redis/v8 v8.11.5
