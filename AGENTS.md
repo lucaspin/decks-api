@@ -4,7 +4,7 @@ HTTP API for managing decks of cards.
 
 ## Quick facts
 
-- Language: Go `1.26` (see `go.mod`)
+- Language: Go `1.27` (see `go.mod`)
 - Module path: `github.com/lucaspin/decks-api`
 - HTTP framework: [gorilla/mux](https://github.com/gorilla/mux)
 - Authentication: none implemented yet
@@ -48,7 +48,7 @@ make server.logs    # tail the server logs
 make test
 ```
 
-This runs `gotestsum` inside the `app` Docker container (see `docker-compose.yml` / `Dockerfile.dev`, Go 1.26 image). Tests live alongside the code they cover as `_test.go` files:
+This runs `gotestsum` inside the `app` Docker container (see `docker-compose.yml` / `Dockerfile.dev`, Go 1.27 image). Tests live alongside the code they cover as `_test.go` files:
 
 - `pkg/api/server_test.go`
 - `pkg/cards/card_generator_test.go`
