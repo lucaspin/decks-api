@@ -8,9 +8,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/lucaspin/decks-api/pkg/cards"
+	"github.com/redis/go-redis/v9"
 )
 
 // A naive implementation of a deck storage using Redis.
