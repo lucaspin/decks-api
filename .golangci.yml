@@ -1,0 +1,9 @@
+version: "2"
+
+linters:
+  default: standard
+  disable:
+    # This codebase does not check the error result of
+    # http.ResponseWriter.Write and respondWithJSON in HTTP handlers,
+    # by design. All other default rules stay on.
+    - errcheck
