@@ -49,7 +49,9 @@ You can also specify a different port for the server to start:
 API_PORT=8012 ./build/server
 ```
 
-Note: you'll need to have Go 1.27 installed on your machine.
+Note: you'll need to have Go 1.26 installed on your machine.
+
+We intentionally stay one minor release behind the latest Go version (currently 1.27). Newly released Go versions can ship with regressions and their surrounding tooling and base images are less battle-tested, so we let the latest release mature before adopting it.
 
 ## Running tests
 
