@@ -59,7 +59,7 @@ Tests are run with the `make test` command.
 
 The persistence of decks is done through the [Storage interface](./pkg/storage/storage.go). The current implementations available are:
 - **In-memory**: the default one. Keeps all the decks in memory. All the decks are lost if the server is shutdown.
-- **Redis**: a Redis one. Note that this implementation has a few caveats currently, explained in [here](./pkg/storage/redis_storage.go). To use it, set the `DECK_STORAGE_TYPE` to `redis`.
+- **Redis**: a Redis one. Note that this implementation has a few caveats currently, explained in [here](./pkg/storage/redis_storage.go). To use it, set the `DECK_STORAGE_TYPE` to `redis`. It talks to Redis using the [redis/go-redis/v9](https://github.com/redis/go-redis) client, and the bundled `docker-compose.yml` runs a `redis:8.8.2-alpine` server.
 
 ## API
 

@@ -7,6 +7,7 @@ HTTP API for managing decks of cards.
 - Language: Go `1.27.0` (see `go.mod`)
 - Module path: `github.com/lucaspin/decks-api`
 - HTTP framework: [gorilla/mux](https://github.com/gorilla/mux)
+- Redis client: [redis/go-redis/v9](https://github.com/redis/go-redis) (`v9.22.0`), talking to a `redis:8.8.2-alpine` server
 - Authentication: none implemented yet
 - Full API reference (routes, params, example curl commands, response shapes): [README.md](./README.md)
 
@@ -73,6 +74,7 @@ Errors from the storage layer are sentinel values (`storage.ErrDeckNotFound`, `s
 ### Redis (`pkg/storage/redis_storage.go`)
 
 - Selected by setting `DECK_STORAGE_TYPE=redis`.
+- Uses the `github.com/redis/go-redis/v9` client (v9.22.0). Local and CI environments run the `redis:8.8.2-alpine` server image pinned in `docker-compose.yml`.
 - Configured from the environment by `NewRedisConfigFromEnvironment()`:
   - `REDIS_HOST` (required)
   - `REDIS_PORT` (optional, defaults to `6379`)
