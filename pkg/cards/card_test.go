@@ -15,7 +15,7 @@ func Test__NewCardFromCode(t *testing.T) {
 		errMessage   string
 	}
 
-	for _, tc := range []testCaseeeeee{
+	for _, tc := range []testCase{
 		{code: "AL", expectErr: true, errMessage: "invalid suit code 'L'"},
 		{code: "A9", expectErr: true, errMessage: "invalid suit code '9'"},
 		{code: "11D", expectErr: true, errMessage: "invalid rank code '11'"},
