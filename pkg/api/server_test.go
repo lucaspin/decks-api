@@ -1,13 +1,16 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/lucaspin/decks-api/pkg/cards"
 	"github.com/lucaspin/decks-api/pkg/storage"
 	"github.com/stretchr/testify/require"
 )
@@ -64,6 +67,24 @@ func Test__CreateDeck(t *testing.T) {
 		require.Equal(t, response.Code, 400)
 		require.Equal(t, response.Body.String(), "invalid rank code '14'\n")
 	})
+
+	t.Run("shuffled deck created", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks?shuffled=true", nil)
+		require.Equal(t, response.Code, 201)
+
+		r := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&r))
+		require.NotNil(t, r.DeckID)
+		require.True(t, r.Shuffled)
+		require.Equal(t, r.Remaining, 52)
+	})
+
+	t.Run("storage error -> 500", func(t *testing.T) {
+		failingServer := NewServer(&failingStorage{})
+		response := execRequest(failingServer, http.MethodPost, "/api/v1alpha/decks", nil)
+		require.Equal(t, response.Code, 500)
+		require.Equal(t, response.Body.String(), "something went wrong\n")
+	})
 }
 
 func Test__OpenDeck(t *testing.T) {
@@ -97,6 +118,14 @@ func Test__OpenDeck(t *testing.T) {
 		require.False(t, openResponse.Shuffled)
 		require.Equal(t, openResponse.Remaining, len(openResponse.Cards))
 		requireFullUnshuffledDeck(t, openResponse.Cards)
+	})
+
+	t.Run("storage error -> 500", func(t *testing.T) {
+		failingServer := NewServer(&failingStorage{})
+		ID := uuid.New()
+		response := execRequest(failingServer, http.MethodGet, "/api/v1alpha/decks/"+ID.String(), nil)
+		require.Equal(t, response.Code, 500)
+		require.Equal(t, response.Body.String(), "something went wrong\n")
 	})
 }
 
@@ -140,15 +169,41 @@ func Test__DrawCards(t *testing.T) {
 		// deck is created
 		deckID := createDeck(t, testServer)
 
-		// deck is opened
-		response := execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		// cards are drawn
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=2", nil)
 		require.Equal(t, response.Code, 200)
-		openResponse := &OpenDeckResponse{}
-		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
-		require.Equal(t, deckID, openResponse.DeckID.String())
-		require.False(t, openResponse.Shuffled)
-		require.Equal(t, openResponse.Remaining, len(openResponse.Cards))
-		requireFullUnshuffledDeck(t, openResponse.Cards)
+		drawResponse := &DrawCardsResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&drawResponse))
+		require.Equal(t, []Card{
+			{Value: "ACE", Suit: "SPADES", Code: "AS"},
+			{Value: "2", Suit: "SPADES", Code: "2S"},
+		}, drawResponse.Cards)
+	})
+
+	t.Run("drawing more cards than remaining, then again -> 400 empty deck", func(t *testing.T) {
+		// deck is created with a single card
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks?cards=AS", nil)
+		require.Equal(t, response.Code, 201)
+		createResponse := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&createResponse))
+		deckID := createResponse.DeckID.String()
+
+		// the only card is drawn
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=1", nil)
+		require.Equal(t, response.Code, 200)
+
+		// drawing again from the now empty deck fails
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=1", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "deck has no more cards\n")
+	})
+
+	t.Run("storage error -> 500", func(t *testing.T) {
+		failingServer := NewServer(&failingStorage{})
+		ID := uuid.New()
+		response := execRequest(failingServer, http.MethodPost, "/api/v1alpha/decks/"+ID.String()+"/draw?count=1", nil)
+		require.Equal(t, response.Code, 500)
+		require.Equal(t, response.Body.String(), "unknown error\n")
 	})
 }
 
@@ -185,6 +240,23 @@ func execRequest(server *Server, method, path string, body interface{}) *httptes
 	rr := httptest.NewRecorder()
 	server.router.ServeHTTP(rr, req)
 	return rr
+}
+
+// failingStorage is a storage.Storage implementation that always returns a
+// non-sentinel error, used to exercise the "unknown error" (500) branches
+// of the API handlers.
+type failingStorage struct{}
+
+func (s *failingStorage) Create(ctx context.Context, list []cards.Card, shuffled bool) (*storage.Deck, error) {
+	return nil, errors.New("something went wrong")
+}
+
+func (s *failingStorage) Get(ctx context.Context, deckID *uuid.UUID) (*storage.Deck, error) {
+	return nil, errors.New("something went wrong")
+}
+
+func (s *failingStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) ([]cards.Card, error) {
+	return nil, errors.New("something went wrong")
 }
 
 func createDeck(t *testing.T, server *Server) string {
