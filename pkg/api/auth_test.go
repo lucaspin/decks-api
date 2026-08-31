@@ -10,7 +10,7 @@ import (
 
 func Test__AuthMiddleware_PassesRequestsThrough(t *testing.T) {
 	called := false
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	next := http.HandlerFun(func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusTeapot)
 		w.Write([]byte("ok"))
