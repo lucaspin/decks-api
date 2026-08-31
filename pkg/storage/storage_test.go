@@ -88,10 +88,9 @@ type StorageImplementation struct {
 var storageImplementations = map[string]StorageImplementation{
 	"redis": {
 		CreateFn: func() (Storage, error) {
-			// This requires a redis server to be available in this address.
-			// This Redis server is created by docker compose.
-			// See the docker-compose.yml file.
-			return NewRedisStorage(&RedisConfig{Host: "redis", Port: "6379"})
+			// Requires Redis, configured via REDIS_HOST / REDIS_PORT
+			// (docker-compose sets these; CI points them at a service container).
+			return NewRedisStorage(nil)
 		},
 	},
 	"in-memory": {
