@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -64,6 +65,30 @@ func Test__CreateDeck(t *testing.T) {
 		require.Equal(t, response.Code, 400)
 		require.Equal(t, response.Body.String(), "invalid rank code '14'\n")
 	})
+
+	t.Run("shuffled deck created", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks?shuffled=true", nil)
+		require.Equal(t, response.Code, 201)
+
+		r := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&r))
+		require.NotNil(t, r.DeckID)
+		require.True(t, r.Shuffled)
+		require.Equal(t, r.Remaining, 52)
+	})
+
+	t.Run("response has JSON content type", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks", nil)
+		require.Equal(t, response.Code, 201)
+		require.Equal(t, "application/json", response.Header().Get("Content-Type"))
+	})
+
+	t.Run("storage failure -> 500", func(t *testing.T) {
+		failingServer := NewServer(&fakeStorage{createErr: errors.New("boom")})
+		response := execRequest(failingServer, http.MethodPost, "/api/v1alpha/decks", nil)
+		require.Equal(t, response.Code, 500)
+		require.Equal(t, response.Body.String(), "boom\n")
+	})
 }
 
 func Test__OpenDeck(t *testing.T) {
@@ -91,12 +116,21 @@ func Test__OpenDeck(t *testing.T) {
 		// deck is opened
 		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+createResponse.DeckID.String(), nil)
 		require.Equal(t, response.Code, 200)
+		require.Equal(t, "application/json", response.Header().Get("Content-Type"))
 		openResponse := &OpenDeckResponse{}
 		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
 		require.Equal(t, createResponse.DeckID.String(), openResponse.DeckID.String())
 		require.False(t, openResponse.Shuffled)
 		require.Equal(t, openResponse.Remaining, len(openResponse.Cards))
 		requireFullUnshuffledDeck(t, openResponse.Cards)
+	})
+
+	t.Run("unknown storage error -> 500", func(t *testing.T) {
+		failingServer := NewServer(&fakeStorage{getErr: errors.New("boom")})
+		ID := uuid.New()
+		response := execRequest(failingServer, http.MethodGet, "/api/v1alpha/decks/"+ID.String(), nil)
+		require.Equal(t, response.Code, 500)
+		require.Equal(t, response.Body.String(), "boom\n")
 	})
 }
 
@@ -149,6 +183,89 @@ func Test__DrawCards(t *testing.T) {
 		require.False(t, openResponse.Shuffled)
 		require.Equal(t, openResponse.Remaining, len(openResponse.Cards))
 		requireFullUnshuffledDeck(t, openResponse.Cards)
+	})
+
+	t.Run("drawing cards reduces the remaining count", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=3", nil)
+		require.Equal(t, response.Code, 200)
+		require.Equal(t, "application/json", response.Header().Get("Content-Type"))
+		drawResponse := &DrawCardsResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&drawResponse))
+		require.Equal(t, []Card{
+			{Value: "ACE", Suit: "SPADES", Code: "AS"},
+			{Value: "2", Suit: "SPADES", Code: "2S"},
+			{Value: "3", Suit: "SPADES", Code: "3S"},
+		}, drawResponse.Cards)
+
+		// remaining count on the deck reflects the draw
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		openResponse := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
+		require.Equal(t, 49, openResponse.Remaining)
+	})
+
+	t.Run("count=0 -> 200 with an empty list of cards", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=0", nil)
+		require.Equal(t, response.Code, 200)
+		drawResponse := &DrawCardsResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&drawResponse))
+		require.Empty(t, drawResponse.Cards)
+	})
+
+	t.Run("count greater than remaining -> only remaining cards are returned", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=1000", nil)
+		require.Equal(t, response.Code, 200)
+		drawResponse := &DrawCardsResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&drawResponse))
+		require.Len(t, drawResponse.Cards, 52)
+	})
+
+	t.Run("drawing from an emptied deck -> 400", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		// drain the deck
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=52", nil)
+		require.Equal(t, response.Code, 200)
+
+		// drawing again fails because the deck has no more cards
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=1", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), storage.ErrEmptyDeck.Error()+"\n")
+	})
+
+	t.Run("unknown storage error -> 500", func(t *testing.T) {
+		failingServer := NewServer(&fakeStorage{drawErr: errors.New("boom")})
+		deckID := createDeck(t, failingServer)
+
+		response := execRequest(failingServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=1", nil)
+		require.Equal(t, response.Code, 500)
+		require.Equal(t, response.Body.String(), "unknown error\n")
+	})
+}
+
+func Test__Routing(t *testing.T) {
+	testServer := NewServer(storage.NewInMemoryStorage())
+
+	t.Run("unknown path -> 404", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodGet, "/does-not-exist", nil)
+		require.Equal(t, response.Code, 404)
+	})
+
+	t.Run("wrong method on known collection path -> 405", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodGet, "/api/v1alpha/decks", nil)
+		require.Equal(t, response.Code, 405)
+	})
+
+	t.Run("wrong method on health check path -> 405", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/", nil)
+		require.Equal(t, response.Code, 405)
 	})
 }
 
