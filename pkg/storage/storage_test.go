@@ -26,10 +26,31 @@ func Test__StorageTest(t *testing.T) {
 
 			d1, err := storage.Create(context.Background(), cards, false)
 			require.NoError(t, err)
+			require.NotNil(t, d1.DeckID)
+			require.False(t, d1.Shuffled)
+			require.Equal(t, 2, d1.Remaining())
 
 			d2, err := storage.Get(context.Background(), d1.DeckID)
 			require.NoError(t, err)
 			require.Equal(t, d1, d2)
+		})
+
+		t.Run(fmt.Sprintf("%s - creating and getting a shuffled deck -> Shuffled is true", storageName), func(t *testing.T) {
+			initial := []cards.Card{
+				{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)},
+				{Suit: cards.CardSuitDiamonds, Rank: cards.CardRank(8)},
+				{Suit: cards.CardSuitHearts, Rank: cards.CardRank(1)},
+			}
+
+			created, err := storage.Create(context.Background(), initial, true)
+			require.NoError(t, err)
+			require.True(t, created.Shuffled)
+			require.Equal(t, len(initial), created.Remaining())
+
+			fetched, err := storage.Get(context.Background(), created.DeckID)
+			require.NoError(t, err)
+			require.True(t, fetched.Shuffled)
+			require.Equal(t, len(initial), fetched.Remaining())
 		})
 
 		t.Run(fmt.Sprintf("%s - drawing from empty deck -> error", storageName), func(t *testing.T) {
