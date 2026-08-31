@@ -90,6 +90,10 @@ type Card struct {
 }
 
 func NewCardFromCode(code string) (*Card, error) {
+	if len(code) < 2 {
+		return nil, fmt.Errorf("invalid card code '%s'", code)
+	}
+
 	suit, err := CardSuitFromCode(code[len(code)-1])
 	if err != nil {
 		return nil, err
