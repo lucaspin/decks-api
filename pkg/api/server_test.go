@@ -24,7 +24,7 @@ func Test__HealthCheckEndpointRespondsWith200(t *testing.T) {
 // Test__CreateDeck exercises the deck creation endpoint end-to-end,
 // covering default, specific-card, invalid-card, and shuffled deck cases.
 func Test__CreateDeck(t *testing.T) {
-	testServer := NewServerrrrrrrrrr(storage.NewInMemoryStorage())
+	testServer := NewServer(storage.NewInMemoryStorage())
 
 	t.Run("default deck created", func(t *testing.T) {
 		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks", nil)
