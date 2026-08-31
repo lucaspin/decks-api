@@ -77,6 +77,41 @@ func Test__StorageTest(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, deck.Cards, 1)
 		})
+
+		t.Run(fmt.Sprintf("%s - creating a shuffled deck preserves the shuffled flag on Get", storageName), func(t *testing.T) {
+			initial := []cards.Card{
+				{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)},
+				{Suit: cards.CardSuitDiamonds, Rank: cards.CardRank(8)},
+			}
+
+			deck, err := storage.Create(context.Background(), initial, true)
+			require.NoError(t, err)
+			require.True(t, deck.Shuffled)
+
+			got, err := storage.Get(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, got.Shuffled)
+		})
+	})
+}
+
+func Test__NewStorage(t *testing.T) {
+	t.Run("no DECK_STORAGE_TYPE set -> in-memory storage", func(t *testing.T) {
+		t.Setenv("DECK_STORAGE_TYPE", "")
+
+		store, err := NewStorage()
+		require.NoError(t, err)
+		require.NotNil(t, store)
+		require.IsType(t, &InMemoryStorage{}, store)
+	})
+
+	t.Run("DECK_STORAGE_TYPE=redis -> redis storage", func(t *testing.T) {
+		t.Setenv("DECK_STORAGE_TYPE", "redis")
+
+		store, err := NewStorage()
+		require.NoError(t, err)
+		require.NotNil(t, store)
+		require.IsType(t, &RedisStorage{}, store)
 	})
 }
 
