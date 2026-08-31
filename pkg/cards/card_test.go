@@ -21,6 +21,8 @@ func Test__NewCardFromCode(t *testing.T) {
 		{code: "11D", expectErr: true, errMessage: "invalid rank code '11'"},
 		{code: "-11D", expectErr: true, errMessage: "invalid rank code '-11'"},
 		{code: "99D", expectErr: true, errMessage: "invalid rank code '99'"},
+		{code: "", expectErr: true, errMessage: "invalid card code"},
+		{code: "S", expectErr: true, errMessage: "invalid card code"},
 		{code: "AD", expectErr: false, expectedRank: CardRank(1), expectedSuit: CardSuitDiamonds},
 		{code: "2D", expectErr: false, expectedRank: CardRank(2), expectedSuit: CardSuitDiamonds},
 		{code: "JD", expectErr: false, expectedRank: CardRank(11), expectedSuit: CardSuitDiamonds},
@@ -49,5 +51,25 @@ func Test__NewCardFromCode(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, &Card{Rank: tc.expectedRank, Suit: tc.expectedSuit}, card)
 		}
+	}
+}
+
+func Test__CardSuit_StringAndCode(t *testing.T) {
+	type testCase struct {
+		suit           CardSuit
+		expectedString string
+		expectedCode   string
+	}
+
+	for _, tc := range []testCase{
+		{suit: CardSuitClubs, expectedString: "CLUBS", expectedCode: "C"},
+		{suit: CardSuitDiamonds, expectedString: "DIAMONDS", expectedCode: "D"},
+		{suit: CardSuitHearts, expectedString: "HEARTS", expectedCode: "H"},
+		{suit: CardSuitSpades, expectedString: "SPADES", expectedCode: "S"},
+		{suit: CardSuitUnknown, expectedString: "", expectedCode: ""},
+	} {
+		suit := tc.suit
+		require.Equal(t, tc.expectedString, suit.String())
+		require.Equal(t, tc.expectedCode, suit.Code())
 	}
 }
