@@ -21,7 +21,7 @@ func Test__HealthCheckEndpointRespondsWith200(t *testing.T) {
 	require.Equal(t, response.Code, 200)
 }
 
-// Test__CreateDeck exercises the deck creation endpoint.
+// Test__CreateDeck exercises the deck creation endpoint end-to-end.
 func Test__CreateDeck(t *testing.T) {
 	testServer := NewServerrrrrr(storage.NewInMemoryStorage())
 
