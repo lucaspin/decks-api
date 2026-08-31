@@ -11,7 +11,7 @@ import (
 
 func Test__NewCreateDeckResponse(t *testing.T) {
 	ID := uuid.New()
-	deck := &storage.Deck{
+	deck := &storage.Dec{
 		DeckID:   &ID,
 		Shuffled: true,
 		Cards: []cards.Card{
