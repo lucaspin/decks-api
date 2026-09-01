@@ -21,6 +21,10 @@ An HTTP API for managing decks of cards.
     - [Params](#params-1)
     - [Responses](#responses-2)
     - [Example - draw single card from deck](#example---draw-single-card-from-deck)
+  - [Deleting a deck](#deleting-a-deck)
+    - [Params](#params-2)
+    - [Responses](#responses-3)
+    - [Example - delete a deck](#example---delete-a-deck)
 
 
 ## Running the server
@@ -217,4 +221,34 @@ If the `deck_id` specified does not exist, 404 is returned.
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/draw?count=1
+```
+
+### Deleting a deck
+
+```
+DELETE /api/v1alpha/decks/:deck_id
+```
+
+#### Params
+
+- `deck_id` (**required**) - the ID of the deck to delete.
+
+#### Responses
+
+<b>204 No Content</b>
+
+The deck was successfully deleted. No response body is returned.
+
+<b>400 Bad Request</b>
+
+If the `deck_id` specified is not a valid UUID, 400 is returned.
+
+<b>404 Not Found</b>
+
+If the `deck_id` specified does not exist, 404 is returned.
+
+#### Example - delete a deck
+
+```
+curl -X DELETE http://localhost:4000/api/v1alpha/decks/{deck_id}
 ```
