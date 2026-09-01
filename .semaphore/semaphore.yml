@@ -1,14 +1,35 @@
 version: v1.0
-name: "\U0001F680 Go Project CI/CD Pipeline"
+name: CI
 agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu2404
+
 blocks:
-  - name: Hello
-    dependencies: []
+  - name: Format, lint, and test
     task:
+      env_vars:
+        - name: REDIS_HOST
+          value: localhost
+        - name: REDIS_PORT
+          value: "6379"
+      prologue:
+        commands:
+          - checkout
+          - sem-version go $(awk '/^go / {print $2; exit}' go.mod)
+          - cache restore
+          - go mod download
+          - cache store
+          - sem-service start redis 6.2
       jobs:
-        - name: Hello
+        - name: Verify
           commands:
-            - echo hello
+            - |
+              unformatted=$(gofmt -l .)
+              if [ -n "$unformatted" ]; then
+                echo "The following files are not formatted with gofmt:"
+                gofmt -d .
+                exit 1
+              fi
+            - go vet ./...
+            - go test -p 1 ./...
