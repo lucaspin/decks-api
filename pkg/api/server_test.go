@@ -19,6 +19,7 @@ func Test__HealthCheckEndpointRespondsWith200(t *testing.T) {
 }
 
 func Test__CreateDeck(t *testing.T) {
+	// Investigating the Semaphore CI compilation failure in this test.
 	testServer := NewServerrrrrr(storage.NewInMemoryStorage())
 
 	t.Run("default deck created", func(t *testing.T) {
