@@ -16,6 +16,8 @@ func Test__NewCardFromCode(t *testing.T) {
 	}
 
 	for _, tc := range []testCase{
+		{code: "", expectErr: true, errMessage: "invalid card code ''"},
+		{code: "S", expectErr: true, errMessage: "invalid card code 'S'"},
 		{code: "AL", expectErr: true, errMessage: "invalid suit code 'L'"},
 		{code: "A9", expectErr: true, errMessage: "invalid suit code '9'"},
 		{code: "11D", expectErr: true, errMessage: "invalid rank code '11'"},
@@ -50,4 +52,92 @@ func Test__NewCardFromCode(t *testing.T) {
 			require.Equal(t, &Card{Rank: tc.expectedRank, Suit: tc.expectedSuit}, card)
 		}
 	}
+}
+
+func Test__CardSuit_StringAndCode(t *testing.T) {
+	type testCase struct {
+		suit           CardSuit
+		expectedString string
+		expectedCode   string
+	}
+
+	for _, tc := range []testCase{
+		{suit: CardSuitClubs, expectedString: "CLUBS", expectedCode: "C"},
+		{suit: CardSuitDiamonds, expectedString: "DIAMONDS", expectedCode: "D"},
+		{suit: CardSuitHearts, expectedString: "HEARTS", expectedCode: "H"},
+		{suit: CardSuitSpades, expectedString: "SPADES", expectedCode: "S"},
+		{suit: CardSuitUnknown, expectedString: "", expectedCode: ""},
+	} {
+		suit := tc.suit
+		require.Equal(t, tc.expectedString, suit.String())
+		require.Equal(t, tc.expectedCode, suit.Code())
+	}
+}
+
+func Test__CardRank_StringAndCode(t *testing.T) {
+	type testCase struct {
+		rank           CardRank
+		expectedString string
+		expectedCode   string
+	}
+
+	for _, tc := range []testCase{
+		{rank: CardRank(1), expectedString: "ACE", expectedCode: "A"},
+		{rank: CardRank(2), expectedString: "2", expectedCode: "2"},
+		{rank: CardRank(10), expectedString: "10", expectedCode: "10"},
+		{rank: CardRank(11), expectedString: "JACK", expectedCode: "J"},
+		{rank: CardRank(12), expectedString: "QUEEN", expectedCode: "Q"},
+		{rank: CardRank(13), expectedString: "KING", expectedCode: "K"},
+	} {
+		rank := tc.rank
+		require.Equal(t, tc.expectedString, rank.String())
+		require.Equal(t, tc.expectedCode, rank.Code())
+	}
+}
+
+func Test__CardListToCodes(t *testing.T) {
+	list := []Card{
+		{Suit: CardSuitSpades, Rank: CardRank(1)},
+		{Suit: CardSuitDiamonds, Rank: CardRank(13)},
+	}
+
+	require.Equal(t, []string{"AS", "KD"}, CardListToCodes(list))
+}
+
+func Test__CodesToCardList(t *testing.T) {
+	t.Run("valid codes are converted", func(t *testing.T) {
+		list, err := CodesToCardList([]string{"AS", "KD"})
+		require.NoError(t, err)
+		require.Equal(t, []Card{
+			{Suit: CardSuitSpades, Rank: CardRank(1)},
+			{Suit: CardSuitDiamonds, Rank: CardRank(13)},
+		}, list)
+	})
+
+	t.Run("surrounding whitespace is trimmed", func(t *testing.T) {
+		list, err := CodesToCardList([]string{" AS ", " KD "})
+		require.NoError(t, err)
+		require.Equal(t, []Card{
+			{Suit: CardSuitSpades, Rank: CardRank(1)},
+			{Suit: CardSuitDiamonds, Rank: CardRank(13)},
+		}, list)
+	})
+
+	t.Run("invalid code returns error", func(t *testing.T) {
+		_, err := CodesToCardList([]string{"AS", "99D"})
+		require.ErrorContains(t, err, "invalid rank code '99'")
+	})
+}
+
+func Test__CardListToCodes_And_CodesToCardList_RoundTrip(t *testing.T) {
+	original := []Card{
+		{Suit: CardSuitSpades, Rank: CardRank(1)},
+		{Suit: CardSuitHearts, Rank: CardRank(10)},
+		{Suit: CardSuitClubs, Rank: CardRank(13)},
+	}
+
+	codes := CardListToCodes(original)
+	roundTripped, err := CodesToCardList(codes)
+	require.NoError(t, err)
+	require.Equal(t, original, roundTripped)
 }
