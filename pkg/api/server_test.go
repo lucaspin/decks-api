@@ -64,6 +64,17 @@ func Test__CreateDeck(t *testing.T) {
 		require.Equal(t, response.Code, 400)
 		require.Equal(t, response.Body.String(), "invalid rank code '14'\n")
 	})
+
+	t.Run("shuffled deck can be created", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks?shuffled=true", nil)
+		require.Equal(t, response.Code, 201)
+
+		r := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&r))
+		require.NotNil(t, r.DeckID)
+		require.True(t, r.Shuffled)
+		require.Equal(t, r.Remaining, 52)
+	})
 }
 
 func Test__OpenDeck(t *testing.T) {
@@ -149,6 +160,63 @@ func Test__DrawCards(t *testing.T) {
 		require.False(t, openResponse.Shuffled)
 		require.Equal(t, openResponse.Remaining, len(openResponse.Cards))
 		requireFullUnshuffledDeck(t, openResponse.Cards)
+	})
+
+	t.Run("draw success -> 200 with drawn cards and updated remaining", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=5", nil)
+		require.Equal(t, response.Code, 200)
+
+		drawResponse := &DrawCardsResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&drawResponse))
+		require.Equal(t, []Card{
+			{Value: "ACE", Suit: "SPADES", Code: "AS"},
+			{Value: "2", Suit: "SPADES", Code: "2S"},
+			{Value: "3", Suit: "SPADES", Code: "3S"},
+			{Value: "4", Suit: "SPADES", Code: "4S"},
+			{Value: "5", Suit: "SPADES", Code: "5S"},
+		}, drawResponse.Cards)
+
+		// deck now has 47 remaining cards
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		openResponse := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
+		require.Equal(t, 47, openResponse.Remaining)
+	})
+
+	t.Run("draw more than remaining -> returns all remaining cards", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks?cards=AS,KD", nil)
+		require.Equal(t, response.Code, 201)
+		createResponse := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&createResponse))
+
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+createResponse.DeckID.String()+"/draw?count=10", nil)
+		require.Equal(t, response.Code, 200)
+
+		drawResponse := &DrawCardsResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&drawResponse))
+		require.Equal(t, []Card{
+			{Value: "ACE", Suit: "SPADES", Code: "AS"},
+			{Value: "KING", Suit: "DIAMONDS", Code: "KD"},
+		}, drawResponse.Cards)
+	})
+
+	t.Run("draw from empty deck -> 400", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks?cards=AS,KD", nil)
+		require.Equal(t, response.Code, 201)
+		createResponse := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&createResponse))
+
+		// draw all the cards
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+createResponse.DeckID.String()+"/draw?count=2", nil)
+		require.Equal(t, response.Code, 200)
+
+		// deck is now empty, drawing again should fail
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+createResponse.DeckID.String()+"/draw?count=1", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, "deck has no more cards\n", response.Body.String())
 	})
 }
 

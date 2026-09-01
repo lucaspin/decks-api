@@ -51,3 +51,143 @@ func Test__NewCardFromCode(t *testing.T) {
 		}
 	}
 }
+
+func Test__CardSuit__String(t *testing.T) {
+	type testCase struct {
+		suit     CardSuit
+		expected string
+	}
+
+	for _, tc := range []testCase{
+		{suit: CardSuitClubs, expected: "CLUBS"},
+		{suit: CardSuitDiamonds, expected: "DIAMONDS"},
+		{suit: CardSuitHearts, expected: "HEARTS"},
+		{suit: CardSuitSpades, expected: "SPADES"},
+		{suit: CardSuitUnknown, expected: ""},
+		{suit: CardSuit(99), expected: ""},
+	} {
+		suit := tc.suit
+		require.Equal(t, tc.expected, suit.String())
+	}
+}
+
+func Test__CardSuit__Code(t *testing.T) {
+	type testCase struct {
+		suit     CardSuit
+		expected string
+	}
+
+	for _, tc := range []testCase{
+		{suit: CardSuitClubs, expected: "C"},
+		{suit: CardSuitDiamonds, expected: "D"},
+		{suit: CardSuitHearts, expected: "H"},
+		{suit: CardSuitSpades, expected: "S"},
+		{suit: CardSuitUnknown, expected: ""},
+		{suit: CardSuit(99), expected: ""},
+	} {
+		suit := tc.suit
+		require.Equal(t, tc.expected, suit.Code())
+	}
+}
+
+func Test__CardRank__String(t *testing.T) {
+	type testCase struct {
+		rank     CardRank
+		expected string
+	}
+
+	for _, tc := range []testCase{
+		{rank: CardRank(1), expected: "ACE"},
+		{rank: CardRank(2), expected: "2"},
+		{rank: CardRank(3), expected: "3"},
+		{rank: CardRank(4), expected: "4"},
+		{rank: CardRank(5), expected: "5"},
+		{rank: CardRank(6), expected: "6"},
+		{rank: CardRank(7), expected: "7"},
+		{rank: CardRank(8), expected: "8"},
+		{rank: CardRank(9), expected: "9"},
+		{rank: CardRank(10), expected: "10"},
+		{rank: CardRank(11), expected: "JACK"},
+		{rank: CardRank(12), expected: "QUEEN"},
+		{rank: CardRank(13), expected: "KING"},
+	} {
+		rank := tc.rank
+		require.Equal(t, tc.expected, rank.String())
+	}
+}
+
+func Test__CardRank__Code(t *testing.T) {
+	type testCase struct {
+		rank     CardRank
+		expected string
+	}
+
+	for _, tc := range []testCase{
+		{rank: CardRank(1), expected: "A"},
+		{rank: CardRank(2), expected: "2"},
+		{rank: CardRank(3), expected: "3"},
+		{rank: CardRank(4), expected: "4"},
+		{rank: CardRank(5), expected: "5"},
+		{rank: CardRank(6), expected: "6"},
+		{rank: CardRank(7), expected: "7"},
+		{rank: CardRank(8), expected: "8"},
+		{rank: CardRank(9), expected: "9"},
+		{rank: CardRank(10), expected: "10"},
+		{rank: CardRank(11), expected: "J"},
+		{rank: CardRank(12), expected: "Q"},
+		{rank: CardRank(13), expected: "K"},
+	} {
+		rank := tc.rank
+		require.Equal(t, tc.expected, rank.Code())
+	}
+}
+
+func Test__Card__Code(t *testing.T) {
+	type testCase struct {
+		card     Card
+		expected string
+	}
+
+	for _, tc := range []testCase{
+		{card: Card{Suit: CardSuitSpades, Rank: CardRank(1)}, expected: "AS"},
+		{card: Card{Suit: CardSuitClubs, Rank: CardRank(10)}, expected: "10C"},
+		{card: Card{Suit: CardSuitDiamonds, Rank: CardRank(13)}, expected: "KD"},
+	} {
+		card := tc.card
+		require.Equal(t, tc.expected, card.Code())
+	}
+}
+
+func Test__AllSuits(t *testing.T) {
+	require.Equal(t, []CardSuit{
+		CardSuitSpades, CardSuitDiamonds, CardSuitClubs, CardSuitHearts,
+	}, AllSuits())
+}
+
+func Test__CardListToCodes(t *testing.T) {
+	list := []Card{
+		{Suit: CardSuitSpades, Rank: CardRank(1)},
+		{Suit: CardSuitDiamonds, Rank: CardRank(13)},
+		{Suit: CardSuitClubs, Rank: CardRank(10)},
+	}
+
+	require.Equal(t, []string{"AS", "KD", "10C"}, CardListToCodes(list))
+}
+
+func Test__CodesToCardList(t *testing.T) {
+	t.Run("valid codes, including surrounding whitespace, are converted", func(t *testing.T) {
+		list, err := CodesToCardList([]string{"  AS ", "KD ", " 10C"})
+		require.NoError(t, err)
+		require.Equal(t, []Card{
+			{Suit: CardSuitSpades, Rank: CardRank(1)},
+			{Suit: CardSuitDiamonds, Rank: CardRank(13)},
+			{Suit: CardSuitClubs, Rank: CardRank(10)},
+		}, list)
+	})
+
+	t.Run("invalid code propagates the error", func(t *testing.T) {
+		list, err := CodesToCardList([]string{"AS", "14C"})
+		require.Nil(t, list)
+		require.ErrorContains(t, err, "invalid rank code '14'")
+	})
+}
