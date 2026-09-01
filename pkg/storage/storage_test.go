@@ -60,6 +60,21 @@ func Test__StorageTest(t *testing.T) {
 			require.Len(t, cards, 2)
 		})
 
+		t.Run(fmt.Sprintf("%s - deck created as shuffled reads back as shuffled", storageName), func(t *testing.T) {
+			initial := []cards.Card{
+				{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)},
+				{Suit: cards.CardSuitDiamonds, Rank: cards.CardRank(8)},
+			}
+
+			created, err := storage.Create(context.Background(), initial, true)
+			require.NoError(t, err)
+			require.True(t, created.Shuffled)
+
+			fetched, err := storage.Get(context.Background(), created.DeckID)
+			require.NoError(t, err)
+			require.True(t, fetched.Shuffled)
+		})
+
 		t.Run(fmt.Sprintf("%s - drawing removes cards from deck", storageName), func(t *testing.T) {
 			initial := []cards.Card{
 				{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)},

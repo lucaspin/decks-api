@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -108,7 +109,7 @@ func (s *RedisStorage) Create(ctx context.Context, list []cards.Card, shuffled b
 	// Add shuffled attribute.
 	// If this fails, we make a small effort
 	// to delete the key we added previously for the cards.
-	_, err = s.Client.Set(ctx, shuffledKey, shuffled, 0).Result()
+	_, err = s.Client.Set(ctx, shuffledKey, strconv.FormatBool(shuffled), 0).Result()
 	if err != nil {
 		if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
 			log.Printf("Error rolling back key: %v", err)
@@ -187,7 +188,7 @@ func keyForAttribute(deckID *uuid.UUID, attrName string) string {
 
 func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UUID) (bool, error) {
 	shuffledKey := keyForAttribute(deckID, "shuffled")
-	_, err := s.Client.Get(ctx, shuffledKey).Result()
+	value, err := s.Client.Get(ctx, shuffledKey).Result()
 
 	// When a key does not exist, Redis gives us a Nil reply
 	if errors.Is(err, redis.Nil) {
@@ -199,5 +200,5 @@ func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UU
 		return false, err
 	}
 
-	return shuffledKey == "true", nil
+	return value == "true", nil
 }
