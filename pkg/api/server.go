@@ -18,7 +18,7 @@ import (
 )
 
 //
-// The object that represents our server
+// The object that represents our HTTP server
 //
 type Server struct {
 	router     *mux.Router
