@@ -22,7 +22,7 @@ func Test__HealthCheckEndpointRespondsWith200(t *testing.T) {
 }
 
 func Test__CreateDeck(t *testing.T) {
-	testServer := NewServerrrrr(storage.NewInMemoryStorage())
+	testServer := NewServer(storage.NewInMemoryStorage())
 
 	t.Run("default deck created", func(t *testing.T) {
 		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks", nil)
