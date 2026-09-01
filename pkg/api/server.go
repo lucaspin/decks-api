@@ -17,6 +17,9 @@ import (
 	"github.com/lucaspin/decks-api/pkg/storage"
 )
 
+//
+// The object that represents our server
+//
 type Server struct {
 	router     *mux.Router
 	httpServer *http.Server
