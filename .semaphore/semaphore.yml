@@ -1,0 +1,14 @@
+version: v1.0
+name: "\U0001F680 Go Project CI/CD Pipeline"
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu2404
+blocks:
+  - name: Hello
+    dependencies: []
+    task:
+      jobs:
+        - name: Hello
+          commands:
+            - echo hello
