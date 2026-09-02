@@ -152,6 +152,33 @@ func Test__DrawCards(t *testing.T) {
 	})
 }
 
+func Test__DeleteDeck(t *testing.T) {
+	testServer := NewServer(storage.NewInMemoryStorage())
+
+	t.Run("invalid deck ID -> 400", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodDelete, "/api/v1alpha/decks/not-a-valid-uuid", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid deck ID\n")
+	})
+
+	t.Run("deck that does not exist -> 404", func(t *testing.T) {
+		ID := uuid.New()
+		response := execRequest(testServer, http.MethodDelete, "/api/v1alpha/decks/"+ID.String(), nil)
+		require.Equal(t, response.Code, 404)
+	})
+
+	t.Run("deck that exists -> 204, and deck is actually removed", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodDelete, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 204)
+		require.Empty(t, response.Body.String())
+
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 404)
+	})
+}
+
 func requireFullUnshuffledDeck(t *testing.T, list []Card) {
 	codes := make([]string, len(list))
 	for i, card := range list {

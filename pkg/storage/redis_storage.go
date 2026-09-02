@@ -181,6 +181,21 @@ func (s *RedisStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) (
 	return cardList, nil
 }
 
+func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return ErrDeckNotFound
+	}
+
+	// Unknown error
+	if err != nil {
+		return err
+	}
+
+	_, err = s.Client.Del(ctx, keyForAttribute(deckID, "cards"), keyForAttribute(deckID, "shuffled")).Result()
+	return err
+}
+
 func keyForAttribute(deckID *uuid.UUID, attrName string) string {
 	return fmt.Sprintf("decks:%s:%s", deckID.String(), attrName)
 }
