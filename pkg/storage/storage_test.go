@@ -78,6 +78,71 @@ func Test__StorageTest(t *testing.T) {
 			require.Len(t, deck.Cards, 1)
 		})
 
+		t.Run(fmt.Sprintf("%s - shuffle with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
+			ID := uuid.New()
+			_, err := storage.Shuffle(context.Background(), &ID)
+			require.ErrorIs(t, err, ErrDeckNotFound)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle with existing deck -> deck is shuffled, same cards", storageName), func(t *testing.T) {
+			initial := []cards.Card{}
+			for _, suit := range cards.AllSuits() {
+				for i := 1; i <= 13; i++ {
+					initial = append(initial, cards.Card{Suit: suit, Rank: cards.CardRank(i)})
+				}
+			}
+
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, shuffled.Shuffled)
+			require.Len(t, shuffled.Cards, len(initial))
+			require.ElementsMatch(t, initial, shuffled.Cards)
+
+			// deck is persisted as shuffled
+			fetched, err := storage.Get(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, fetched.Shuffled)
+			require.ElementsMatch(t, initial, fetched.Cards)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle only affects remaining cards", storageName), func(t *testing.T) {
+			initial := []cards.Card{
+				{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)},
+				{Suit: cards.CardSuitDiamonds, Rank: cards.CardRank(8)},
+				{Suit: cards.CardSuitHearts, Rank: cards.CardRank(1)},
+			}
+
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			drawn, err := storage.Draw(context.Background(), deck.DeckID, 1)
+			require.NoError(t, err)
+			require.Equal(t, []cards.Card{initial[0]}, drawn)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, shuffled.Shuffled)
+			require.Len(t, shuffled.Cards, 2)
+			require.ElementsMatch(t, initial[1:], shuffled.Cards)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle on empty deck -> no error", storageName), func(t *testing.T) {
+			initial := []cards.Card{{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)}}
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			_, err = storage.Draw(context.Background(), deck.DeckID, 1)
+			require.NoError(t, err)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, shuffled.Shuffled)
+			require.Empty(t, shuffled.Cards)
+		})
+
 		t.Run(fmt.Sprintf("%s - delete with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
 			ID := uuid.New()
 			err := storage.Delete(context.Background(), &ID)

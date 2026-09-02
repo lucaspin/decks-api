@@ -10,11 +10,15 @@ import (
 // An implementation of the Storage interface that keeps all decks in memory, good for local tests.
 // Note that all decks are lost when the server shuts down, so use appropriately.
 type InMemoryStorage struct {
-	decks map[string]Deck
+	decks     map[string]Deck
+	generator *cards.CardGenerator
 }
 
 func NewInMemoryStorage() Storage {
-	return &InMemoryStorage{decks: map[string]Deck{}}
+	return &InMemoryStorage{
+		decks:     map[string]Deck{},
+		generator: cards.NewCardGenerator(),
+	}
 }
 
 func (s *InMemoryStorage) Create(ctx context.Context, list []cards.Card, shuffled bool) (*Deck, error) {
@@ -67,6 +71,22 @@ func (s *InMemoryStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int
 	}
 
 	return cards, nil
+}
+
+func (s *InMemoryStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	deck, ok := s.decks[deckID.String()]
+	if !ok {
+		return nil, ErrDeckNotFound
+	}
+
+	shuffled := Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    s.generator.Shuffle(deck.Cards),
+	}
+
+	s.decks[deckID.String()] = shuffled
+	return &shuffled, nil
 }
 
 func (s *InMemoryStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
