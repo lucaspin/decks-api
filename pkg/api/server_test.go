@@ -22,7 +22,7 @@ func Test__CreateDeck(t *testing.T) {
 	testServer := NewServer(storage.NewInMemoryStorage())
 
 	t.Run("default deck created", func(t *testing.T) {
-		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks", nil)
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/deckssss", nil)
 		require.Equal(t, response.Code, 201)
 
 		r := &CreateDeckResponse{}
