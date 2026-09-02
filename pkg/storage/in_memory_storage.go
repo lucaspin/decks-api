@@ -68,3 +68,13 @@ func (s *InMemoryStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int
 
 	return cards, nil
 }
+
+func (s *InMemoryStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
+	_, ok := s.decks[deckID.String()]
+	if !ok {
+		return ErrDeckNotFound
+	}
+
+	delete(s.decks, deckID.String())
+	return nil
+}
