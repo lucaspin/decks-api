@@ -152,6 +152,43 @@ func Test__DrawCards(t *testing.T) {
 	})
 }
 
+func Test__ShuffleDeck(t *testing.T) {
+	testServer := NewServer(storage.NewInMemoryStorage())
+
+	t.Run("invalid deck ID -> 400", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/not-a-valid-uuid/shuffle", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid deck ID\n")
+	})
+
+	t.Run("deck that does not exist -> 404", func(t *testing.T) {
+		ID := uuid.New()
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+ID.String()+"/shuffle", nil)
+		require.Equal(t, response.Code, 404)
+	})
+
+	t.Run("deck that exists -> 200 with proper response", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+
+		shuffleResponse := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&shuffleResponse))
+		require.Equal(t, deckID, shuffleResponse.DeckID.String())
+		require.True(t, shuffleResponse.Shuffled)
+		require.Equal(t, 52, shuffleResponse.Remaining)
+
+		// drawn/remaining cards are unaffected in count, just reordered
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		openResponse := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
+		require.True(t, openResponse.Shuffled)
+		require.Equal(t, 52, openResponse.Remaining)
+	})
+}
+
 func Test__DeleteDeck(t *testing.T) {
 	testServer := NewServer(storage.NewInMemoryStorage())
 
