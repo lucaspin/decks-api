@@ -77,6 +77,36 @@ func Test__StorageTest(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, deck.Cards, 1)
 		})
+
+		t.Run(fmt.Sprintf("%s - delete with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
+			ID := uuid.New()
+			err := storage.Delete(context.Background(), &ID)
+			require.ErrorIs(t, err, ErrDeckNotFound)
+		})
+
+		t.Run(fmt.Sprintf("%s - delete with existing deck -> deck is removed", storageName), func(t *testing.T) {
+			initial := []cards.Card{{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)}}
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			err = storage.Delete(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+
+			_, err = storage.Get(context.Background(), deck.DeckID)
+			require.ErrorIs(t, err, ErrDeckNotFound)
+		})
+
+		t.Run(fmt.Sprintf("%s - deleting the same deck twice -> second call returns ErrDeckNotFound", storageName), func(t *testing.T) {
+			initial := []cards.Card{{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)}}
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			err = storage.Delete(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+
+			err = storage.Delete(context.Background(), deck.DeckID)
+			require.ErrorIs(t, err, ErrDeckNotFound)
+		})
 	})
 }
 
