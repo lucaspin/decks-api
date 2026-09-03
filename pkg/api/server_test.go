@@ -179,6 +179,83 @@ func Test__DeleteDeck(t *testing.T) {
 	})
 }
 
+func Test__ShuffleDeck(t *testing.T) {
+	testServer := NewServer(storage.NewInMemoryStorage())
+
+	t.Run("invalid deck ID -> 400", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/not-a-valid-uuid/shuffle", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid deck ID\n")
+	})
+
+	t.Run("deck that does not exist -> 404", func(t *testing.T) {
+		ID := uuid.New()
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+ID.String()+"/shuffle", nil)
+		require.Equal(t, response.Code, 404)
+	})
+
+	t.Run("deck that exists -> 200 with proper response", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+
+		shuffleResponse := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&shuffleResponse))
+		require.Equal(t, deckID, shuffleResponse.DeckID.String())
+		require.True(t, shuffleResponse.Shuffled)
+		require.Equal(t, 52, shuffleResponse.Remaining)
+
+		// the deck should still contain the exact same set of cards, just
+		// in a (very likely) different order.
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		openResponse := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
+		require.True(t, openResponse.Shuffled)
+		requireSameCards(t, fullUnshuffledDeckCodes(), openResponse.Cards)
+	})
+
+	t.Run("shuffle then draw still works", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=5", nil)
+		require.Equal(t, response.Code, 200)
+		drawResponse := &DrawCardsResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&drawResponse))
+		require.Len(t, drawResponse.Cards, 5)
+
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		openResponse := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
+		require.Equal(t, 47, openResponse.Remaining)
+	})
+}
+
+func fullUnshuffledDeckCodes() []string {
+	return []string{
+		"AS", "2S", "3S", "4S", "5S", "6S", "7S", "8S", "9S", "10S", "JS", "QS", "KS",
+		"AD", "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "JD", "QD", "KD",
+		"AC", "2C", "3C", "4C", "5C", "6C", "7C", "8C", "9C", "10C", "JC", "QC", "KC",
+		"AH", "2H", "3H", "4H", "5H", "6H", "7H", "8H", "9H", "10H", "JH", "QH", "KH",
+	}
+}
+
+// requireSameCards asserts that the given list of cards has the same
+// multiset of codes as the expected list of codes, regardless of order.
+func requireSameCards(t *testing.T, expectedCodes []string, list []Card) {
+	actualCodes := make([]string, len(list))
+	for i, card := range list {
+		actualCodes[i] = card.Code
+	}
+
+	require.ElementsMatch(t, expectedCodes, actualCodes)
+}
+
 func requireFullUnshuffledDeck(t *testing.T, list []Card) {
 	codes := make([]string, len(list))
 	for i, card := range list {

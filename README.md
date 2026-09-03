@@ -21,9 +21,13 @@ An HTTP API for managing decks of cards.
     - [Params](#params-1)
     - [Responses](#responses-2)
     - [Example - draw single card from deck](#example---draw-single-card-from-deck)
-  - [Deleting a deck](#deleting-a-deck)
+  - [Re-shuffling a deck](#re-shuffling-a-deck)
     - [Params](#params-2)
     - [Responses](#responses-3)
+    - [Example - re-shuffle a deck](#example---re-shuffle-a-deck)
+  - [Deleting a deck](#deleting-a-deck)
+    - [Params](#params-3)
+    - [Responses](#responses-4)
     - [Example - delete a deck](#example---delete-a-deck)
 
 
@@ -221,6 +225,44 @@ If the `deck_id` specified does not exist, 404 is returned.
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/draw?count=1
+```
+
+### Re-shuffling a deck
+
+```
+POST /api/v1alpha/decks/:deck_id/shuffle
+```
+
+Re-shuffles the cards currently remaining in the deck (cards already drawn are not brought back), and marks the deck as shuffled.
+
+#### Params
+
+- `deck_id` (**required**) - the ID of the deck to shuffle.
+
+#### Responses
+
+<b>200 OK</b>
+
+```json
+{
+  "deck_id": "289970dd-32b0-4c88-a4c0-d2b2d1fbc53c",
+  "shuffled": true,
+  "remaining": 52
+}
+```
+
+<b>400 Bad Request</b>
+
+If the `deck_id` specified is not a valid UUID, 400 is returned.
+
+<b>404 Not Found</b>
+
+If the `deck_id` specified does not exist, 404 is returned.
+
+#### Example - re-shuffle a deck
+
+```
+curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/shuffle
 ```
 
 ### Deleting a deck

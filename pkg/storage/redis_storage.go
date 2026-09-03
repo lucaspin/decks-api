@@ -181,6 +181,57 @@ func (s *RedisStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) (
 	return cardList, nil
 }
 
+// Shuffle re-shuffles the cards currently remaining in the deck and marks it
+// as shuffled. Like the other operations in this implementation, this is not
+// atomic: the read of the current cards and the rewrite of the list happen as
+// separate Redis calls, so concurrent draws/shuffles on the same deck could
+// race. See the caveat documented at the top of this file.
+func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	// We don't really need the shuffled attribute here,
+	// but this is how we check that the deck exists before shuffling it.
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return nil, err
+	}
+
+	// Unknown error
+	if err != nil {
+		return nil, err
+	}
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	list, err := s.Client.LRange(ctx, cardsKey, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// We know this is valid because we validate it before inserting.
+	cardList, _ := cards.CodesToCardList(list)
+	cardList = cards.ShuffleList(cardList)
+
+	// Rewrite the cards key with the newly shuffled order.
+	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+		return nil, err
+	}
+
+	if len(cardList) > 0 {
+		if _, err := s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(cardList)).Result(); err != nil {
+			return nil, err
+		}
+	}
+
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+	if _, err := s.Client.Set(ctx, shuffledKey, true, 0).Result(); err != nil {
+		return nil, err
+	}
+
+	return &Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    cardList,
+	}, nil
+}
+
 func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	// We don't really need the shuffled attribute here,
 	// but this is how we check that the deck exists before deleting it.
