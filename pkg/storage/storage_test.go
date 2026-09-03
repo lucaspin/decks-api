@@ -107,6 +107,50 @@ func Test__StorageTest(t *testing.T) {
 			err = storage.Delete(context.Background(), deck.DeckID)
 			require.ErrorIs(t, err, ErrDeckNotFound)
 		})
+
+		t.Run(fmt.Sprintf("%s - shuffle with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
+			ID := uuid.New()
+			_, err := storage.Shuffle(context.Background(), &ID)
+			require.ErrorIs(t, err, ErrDeckNotFound)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle preserves the remaining cards and marks the deck as shuffled", storageName), func(t *testing.T) {
+			initial, err := cards.CodesToCardList([]string{"AS", "2S", "3S", "4S", "5S", "6S", "7S", "8S"})
+			require.NoError(t, err)
+
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, shuffled.Shuffled)
+			require.ElementsMatch(t, cards.CardListToCodes(initial), cards.CardListToCodes(shuffled.Cards))
+
+			fromStorage, err := storage.Get(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, fromStorage.Shuffled)
+			require.ElementsMatch(t, cards.CardListToCodes(initial), cards.CardListToCodes(fromStorage.Cards))
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle after a draw only reshuffles the remaining cards", storageName), func(t *testing.T) {
+			initial, err := cards.CodesToCardList([]string{"AS", "2S", "3S", "4S"})
+			require.NoError(t, err)
+
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			drawn, err := storage.Draw(context.Background(), deck.DeckID, 2)
+			require.NoError(t, err)
+			require.Len(t, drawn, 2)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, shuffled.Shuffled)
+			require.Len(t, shuffled.Cards, 2)
+
+			remainingCodes := cards.CardListToCodes(append(drawn, shuffled.Cards...))
+			require.ElementsMatch(t, cards.CardListToCodes(initial), remainingCodes)
+		})
 	})
 }
 
