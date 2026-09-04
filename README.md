@@ -25,6 +25,10 @@ An HTTP API for managing decks of cards.
     - [Params](#params-2)
     - [Responses](#responses-3)
     - [Example - delete a deck](#example---delete-a-deck)
+  - [Shuffling a deck](#shuffling-a-deck)
+    - [Params](#params-3)
+    - [Responses](#responses-4)
+    - [Example - shuffle a deck](#example---shuffle-a-deck)
 
 
 ## Running the server
@@ -251,4 +255,44 @@ If the `deck_id` specified does not exist, 404 is returned.
 
 ```
 curl -X DELETE http://localhost:4000/api/v1alpha/decks/{deck_id}
+```
+
+### Shuffling a deck
+
+```
+POST /api/v1alpha/decks/:deck_id/shuffle
+```
+
+Reorders the cards currently remaining in the deck and marks it as shuffled. Cards that have already been drawn are not affected.
+
+#### Params
+
+- `deck_id` (**required**) - the ID of the deck to shuffle.
+
+#### Responses
+
+<b>200 OK</b>
+
+```json
+{
+  "deck_id": "289970dd-32b0-4c88-a4c0-d2b2d1fbc53c",
+  "shuffled": true,
+  "remaining": 52
+}
+```
+
+`shuffled` is always `true` in the response, regardless of the deck's previous state. If the deck has no cards remaining, this is a successful no-op and `remaining` is `0`.
+
+<b>400 Bad Request</b>
+
+If the `deck_id` specified is not a valid UUID, 400 is returned.
+
+<b>404 Not Found</b>
+
+If the `deck_id` specified does not exist, 404 is returned.
+
+#### Example - shuffle a deck
+
+```
+curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/shuffle
 ```

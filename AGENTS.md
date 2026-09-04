@@ -59,7 +59,7 @@ This runs `gotestsum` inside the `app` Docker container (see `docker-compose.yml
 
 ## Storage abstraction
 
-Persistence is done through the `storage.Storage` interface (`pkg/storage/storage.go`), with three methods: `Create`, `Get`, `Draw`. The implementation is selected at startup by `storage.NewStorage()` based on the `DECK_STORAGE_TYPE` env var.
+Persistence is done through the `storage.Storage` interface (`pkg/storage/storage.go`), with five methods: `Create`, `Get`, `Draw`, `Delete`, `Shuffle`. The implementation is selected at startup by `storage.NewStorage()` based on the `DECK_STORAGE_TYPE` env var.
 
 Errors from the storage layer are sentinel values (`storage.ErrDeckNotFound`, `storage.ErrEmptyDeck`) checked with `errors.Is` and translated into HTTP status codes in `pkg/api/server.go`.
 
