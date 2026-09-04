@@ -53,8 +53,16 @@ func (g *CardGenerator) FullCardList() []Card {
 }
 
 func (g *CardGenerator) Shuffle(list []Card) []Card {
+	return Shuffle(g.rand, list)
+}
+
+// Shuffle reorders list in place using the Fisher-Yates algorithm and the
+// given random source. It is exposed as a package-level function so that
+// other packages (e.g. storage backends) can shuffle a list of cards without
+// duplicating the algorithm or depending on a CardGenerator.
+func Shuffle(r *rand.Rand, list []Card) []Card {
 	for i := range list {
-		j := g.rand.Intn(i + 1)
+		j := r.Intn(i + 1)
 		list[i], list[j] = list[j], list[i]
 	}
 
