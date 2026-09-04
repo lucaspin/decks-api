@@ -2,6 +2,8 @@ package storage
 
 import (
 	"context"
+	"math/rand"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lucaspin/decks-api/pkg/cards"
@@ -11,10 +13,14 @@ import (
 // Note that all decks are lost when the server shuts down, so use appropriately.
 type InMemoryStorage struct {
 	decks map[string]Deck
+	rand  *rand.Rand
 }
 
 func NewInMemoryStorage() Storage {
-	return &InMemoryStorage{decks: map[string]Deck{}}
+	return &InMemoryStorage{
+		decks: map[string]Deck{},
+		rand:  rand.New(rand.NewSource(time.Now().UnixNano())),
+	}
 }
 
 func (s *InMemoryStorage) Create(ctx context.Context, list []cards.Card, shuffled bool) (*Deck, error) {
@@ -76,4 +82,20 @@ func (s *InMemoryStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 
 	delete(s.decks, deckID.String())
 	return nil
+}
+
+func (s *InMemoryStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	deck, ok := s.decks[deckID.String()]
+	if !ok {
+		return nil, ErrDeckNotFound
+	}
+
+	shuffled := Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    cards.Shuffle(s.rand, deck.Cards),
+	}
+
+	s.decks[deckID.String()] = shuffled
+	return &shuffled, nil
 }
