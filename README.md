@@ -21,9 +21,13 @@ An HTTP API for managing decks of cards.
     - [Params](#params-1)
     - [Responses](#responses-2)
     - [Example - draw single card from deck](#example---draw-single-card-from-deck)
-  - [Deleting a deck](#deleting-a-deck)
+  - [Shuffling a deck](#shuffling-a-deck)
     - [Params](#params-2)
     - [Responses](#responses-3)
+    - [Example - shuffle a deck](#example---shuffle-a-deck)
+  - [Deleting a deck](#deleting-a-deck)
+    - [Params](#params-3)
+    - [Responses](#responses-4)
     - [Example - delete a deck](#example---delete-a-deck)
 
 
@@ -221,6 +225,46 @@ If the `deck_id` specified does not exist, 404 is returned.
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/draw?count=1
+```
+
+### Shuffling a deck
+
+```
+POST /api/v1alpha/decks/:deck_id/shuffle
+```
+
+Re-shuffles the cards currently remaining in the deck (not a fresh 52-card deck - if you've already drawn cards, only the remaining ones are reshuffled) and marks the deck as shuffled.
+
+#### Params
+
+- `deck_id` (**required**) - the ID of the deck to shuffle.
+
+#### Responses
+
+<b>200 OK</b>
+
+Returns the deck summary, same shape as the create-deck response. Note that the new card order is not included in this response - open the deck to see it.
+
+```json
+{
+  "deck_id": "289970dd-32b0-4c88-a4c0-d2b2d1fbc53c",
+  "shuffled": true,
+  "remaining": 52
+}
+```
+
+<b>400 Bad Request</b>
+
+If the `deck_id` specified is not a valid UUID, 400 is returned.
+
+<b>404 Not Found</b>
+
+If the `deck_id` specified does not exist, 404 is returned.
+
+#### Example - shuffle a deck
+
+```
+curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/shuffle
 ```
 
 ### Deleting a deck
