@@ -204,7 +204,7 @@ func keyForAttribute(deckID *uuid.UUID, attrName string) string {
 
 func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UUID) (bool, error) {
 	shuffledKey := keyForAttribute(deckID, "shuffled")
-	_, err := s.Client.Get(ctx, shuffledKey).Result()
+	value, err := s.Client.Get(ctx, shuffledKey).Result()
 
 	// When a key does not exist, Redis gives us a Nil reply
 	if errors.Is(err, redis.Nil) {
@@ -216,5 +216,7 @@ func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UU
 		return false, err
 	}
 
-	return shuffledKey == "true", nil
+	// go-redis encodes bool values as "1"/"0" when writing them, so that's
+	// what we get back here.
+	return value == "1", nil
 }
