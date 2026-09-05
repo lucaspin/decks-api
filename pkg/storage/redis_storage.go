@@ -198,13 +198,64 @@ func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	return err
 }
 
+// Shuffle re-orders the cards currently remaining in a deck and marks it as
+// shuffled. As with the other operations in this file, this is not atomic:
+// another request could draw or delete cards between the LRange and the
+// DEL/RPUSH pair below.
+func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	// We don't really need the shuffled attribute here,
+	// but this is how we check that the deck exists before shuffling it.
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return nil, err
+	}
+
+	// Unknown error
+	if err != nil {
+		return nil, err
+	}
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+
+	codes, err := s.Client.LRange(ctx, cardsKey, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// We know this is valid because we validate it before inserting.
+	list, _ := cards.CodesToCardList(codes)
+	list = cards.ShuffleList(list)
+
+	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+		return nil, err
+	}
+
+	// If the deck is empty, there is nothing to push back.
+	if len(list) > 0 {
+		if _, err := s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(list)).Result(); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err := s.Client.Set(ctx, shuffledKey, true, 0).Result(); err != nil {
+		return nil, err
+	}
+
+	return &Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    list,
+	}, nil
+}
+
 func keyForAttribute(deckID *uuid.UUID, attrName string) string {
 	return fmt.Sprintf("decks:%s:%s", deckID.String(), attrName)
 }
 
 func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UUID) (bool, error) {
 	shuffledKey := keyForAttribute(deckID, "shuffled")
-	_, err := s.Client.Get(ctx, shuffledKey).Result()
+	value, err := s.Client.Get(ctx, shuffledKey).Result()
 
 	// When a key does not exist, Redis gives us a Nil reply
 	if errors.Is(err, redis.Nil) {
@@ -216,5 +267,7 @@ func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UU
 		return false, err
 	}
 
-	return shuffledKey == "true", nil
+	// go-redis encodes bool values as "1"/"0" when writing them, so that's
+	// what we get back here.
+	return value == "1", nil
 }

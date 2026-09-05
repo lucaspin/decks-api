@@ -179,6 +179,80 @@ func Test__DeleteDeck(t *testing.T) {
 	})
 }
 
+func Test__ShuffleDeck(t *testing.T) {
+	testServer := NewServer(storage.NewInMemoryStorage())
+
+	t.Run("invalid deck ID -> 400", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/not-a-valid-uuid/shuffle", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid deck ID\n")
+	})
+
+	t.Run("deck that does not exist -> 404", func(t *testing.T) {
+		ID := uuid.New()
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+ID.String()+"/shuffle", nil)
+		require.Equal(t, response.Code, 404)
+	})
+
+	t.Run("deck that exists -> 200 with proper response", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+
+		shuffleResponse := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&shuffleResponse))
+		require.Equal(t, deckID, shuffleResponse.DeckID.String())
+		require.True(t, shuffleResponse.Shuffled)
+		require.Equal(t, shuffleResponse.Remaining, 52)
+
+		// deck still holds the same set of cards, just possibly reordered.
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		openResponse := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
+		require.True(t, openResponse.Shuffled)
+		require.Equal(t, openResponse.Remaining, len(openResponse.Cards))
+		requireCodes(t, fullDeckCodes(), openResponse.Cards)
+	})
+
+	t.Run("shuffling after drawing cards keeps remaining count", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=5", nil)
+		require.Equal(t, response.Code, 200)
+
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+
+		shuffleResponse := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&shuffleResponse))
+		require.True(t, shuffleResponse.Shuffled)
+		require.Equal(t, shuffleResponse.Remaining, 47)
+	})
+}
+
+func fullDeckCodes() []string {
+	return []string{
+		"AS", "2S", "3S", "4S", "5S", "6S", "7S", "8S", "9S", "10S", "JS", "QS", "KS",
+		"AD", "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "JD", "QD", "KD",
+		"AC", "2C", "3C", "4C", "5C", "6C", "7C", "8C", "9C", "10C", "JC", "QC", "KC",
+		"AH", "2H", "3H", "4H", "5H", "6H", "7H", "8H", "9H", "10H", "JH", "QH", "KH",
+	}
+}
+
+// requireCodes asserts that list contains the exact same set of card codes as
+// expected, regardless of order. Used for shuffled decks, where the order is
+// random by definition.
+func requireCodes(t *testing.T, expected []string, list []Card) {
+	codes := make([]string, len(list))
+	for i, card := range list {
+		codes[i] = card.Code
+	}
+
+	require.ElementsMatch(t, expected, codes)
+}
+
 func requireFullUnshuffledDeck(t *testing.T, list []Card) {
 	codes := make([]string, len(list))
 	for i, card := range list {
