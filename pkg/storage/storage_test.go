@@ -107,6 +107,67 @@ func Test__StorageTest(t *testing.T) {
 			err = storage.Delete(context.Background(), deck.DeckID)
 			require.ErrorIs(t, err, ErrDeckNotFound)
 		})
+
+		t.Run(fmt.Sprintf("%s - shuffle with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
+			ID := uuid.New()
+			_, err := storage.Shuffle(context.Background(), &ID)
+			require.ErrorIs(t, err, ErrDeckNotFound)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle with existing deck -> deck is marked as shuffled, cards are preserved", storageName), func(t *testing.T) {
+			initial := []cards.Card{
+				{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)},
+				{Suit: cards.CardSuitDiamonds, Rank: cards.CardRank(8)},
+				{Suit: cards.CardSuitHearts, Rank: cards.CardRank(1)},
+				{Suit: cards.CardSuitSpades, Rank: cards.CardRank(13)},
+			}
+
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, shuffled.Shuffled)
+			require.ElementsMatch(t, initial, shuffled.Cards)
+
+			// The change is persisted.
+			fetched, err := storage.Get(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, fetched.Shuffled)
+			require.ElementsMatch(t, initial, fetched.Cards)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle does not restore drawn cards", storageName), func(t *testing.T) {
+			initial := []cards.Card{
+				{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)},
+				{Suit: cards.CardSuitDiamonds, Rank: cards.CardRank(8)},
+			}
+
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			_, err = storage.Draw(context.Background(), deck.DeckID, 1)
+			require.NoError(t, err)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, shuffled.Shuffled)
+			require.Len(t, shuffled.Cards, 1)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffling an empty deck -> succeeds with 0 remaining cards", storageName), func(t *testing.T) {
+			initial := []cards.Card{{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)}}
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			_, err = storage.Draw(context.Background(), deck.DeckID, 1)
+			require.NoError(t, err)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, shuffled.Shuffled)
+			require.Empty(t, shuffled.Cards)
+		})
 	})
 }
 

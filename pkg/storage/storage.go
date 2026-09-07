@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lucaspin/decks-api/pkg/cards"
@@ -28,6 +30,18 @@ type Storage interface {
 	Get(ctx context.Context, deckID *uuid.UUID) (*Deck, error)
 	Draw(ctx context.Context, deckID *uuid.UUID, count int) ([]cards.Card, error)
 	Delete(ctx context.Context, deckID *uuid.UUID) error
+	Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error)
+}
+
+// Shuffles the given list of cards in place, using a Fisher-Yates shuffle.
+// This is intentionally kept separate from cards.CardGenerator.Shuffle so that
+// the storage package doesn't need to depend on a generator instance.
+func shuffleCards(list []cards.Card) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := len(list) - 1; i > 0; i-- {
+		j := r.Intn(i + 1)
+		list[i], list[j] = list[j], list[i]
+	}
 }
 
 func NewStorage() (Storage, error) {
