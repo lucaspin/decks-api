@@ -53,8 +53,20 @@ func (g *CardGenerator) FullCardList() []Card {
 }
 
 func (g *CardGenerator) Shuffle(list []Card) []Card {
+	return shuffleCardListWithRand(list, g.rand)
+}
+
+// ShuffleCardList shuffles the given list of cards in place using the
+// Fisher-Yates algorithm, and returns it. It is a package-level helper
+// for callers that don't hold a CardGenerator (e.g. the storage layer),
+// seeded independently from math/rand.
+func ShuffleCardList(list []Card) []Card {
+	return shuffleCardListWithRand(list, rand.New(rand.NewSource(time.Now().UnixNano())))
+}
+
+func shuffleCardListWithRand(list []Card, r *rand.Rand) []Card {
 	for i := range list {
-		j := g.rand.Intn(i + 1)
+		j := r.Intn(i + 1)
 		list[i], list[j] = list[j], list[i]
 	}
 
