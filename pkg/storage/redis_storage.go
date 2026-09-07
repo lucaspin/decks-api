@@ -181,6 +181,52 @@ func (s *RedisStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) (
 	return cardList, nil
 }
 
+func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	// We don't really need the shuffled attribute here,
+	// but this is how we check that the deck exists before shuffling it.
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return nil, err
+	}
+
+	// Unknown error
+	if err != nil {
+		return nil, err
+	}
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	list, err := s.Client.LRange(ctx, cardsKey, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// We know this is valid because we validate it before inserting.
+	cardList, _ := cards.CodesToCardList(list)
+	shuffledList := cards.ShuffleCards(cardList)
+
+	// Replace the list with the shuffled version. Note that this is not
+	// atomic (see the note at the top of this file): a reader could see
+	// an empty list between the DEL and the RPUSH below.
+	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+		return nil, err
+	}
+
+	if _, err := s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(shuffledList)).Result(); err != nil {
+		return nil, err
+	}
+
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+	if _, err := s.Client.Set(ctx, shuffledKey, true, 0).Result(); err != nil {
+		return nil, err
+	}
+
+	return &Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    shuffledList,
+	}, nil
+}
+
 func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	// We don't really need the shuffled attribute here,
 	// but this is how we check that the deck exists before deleting it.

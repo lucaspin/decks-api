@@ -152,6 +152,64 @@ func Test__DrawCards(t *testing.T) {
 	})
 }
 
+func Test__ShuffleDeck(t *testing.T) {
+	testServer := NewServer(storage.NewInMemoryStorage())
+
+	t.Run("invalid deck ID -> 400", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/not-a-valid-uuid/shuffle", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid deck ID\n")
+	})
+
+	t.Run("deck that does not exist -> 404", func(t *testing.T) {
+		ID := uuid.New()
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+ID.String()+"/shuffle", nil)
+		require.Equal(t, response.Code, 404)
+	})
+
+	t.Run("deck that exists -> 200 with proper response", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+
+		shuffleResponse := &ShuffleDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&shuffleResponse))
+		require.Equal(t, deckID, shuffleResponse.DeckID.String())
+		require.True(t, shuffleResponse.Shuffled)
+		require.Equal(t, 52, shuffleResponse.Remaining)
+	})
+
+	t.Run("deck with specific cards -> shuffled cards are the same set, remaining unchanged", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks?cards=AS,KD,AC,7H", nil)
+		require.Equal(t, response.Code, 201)
+		createResponse := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&createResponse))
+		deckID := createResponse.DeckID.String()
+
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+		shuffleResponse := &ShuffleDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&shuffleResponse))
+		require.True(t, shuffleResponse.Shuffled)
+		require.Equal(t, 4, shuffleResponse.Remaining)
+
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		openResponse := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
+		require.True(t, openResponse.Shuffled)
+		require.Equal(t, 4, openResponse.Remaining)
+
+		codes := make([]string, len(openResponse.Cards))
+		for i, c := range openResponse.Cards {
+			codes[i] = c.Code
+		}
+
+		require.ElementsMatch(t, []string{"AS", "KD", "AC", "7H"}, codes)
+	})
+}
+
 func Test__DeleteDeck(t *testing.T) {
 	testServer := NewServer(storage.NewInMemoryStorage())
 

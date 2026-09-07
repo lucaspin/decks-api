@@ -60,3 +60,17 @@ func (g *CardGenerator) Shuffle(list []Card) []Card {
 
 	return list
 }
+
+// ShuffleCards shuffles the given list of cards in place using its own
+// random source, and returns it. This is useful for callers (like the
+// storage implementations) that need to shuffle a list of cards without
+// having to hold on to a CardGenerator instance.
+func ShuffleCards(list []Card) []Card {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := range list {
+		j := r.Intn(i + 1)
+		list[i], list[j] = list[j], list[i]
+	}
+
+	return list
+}
