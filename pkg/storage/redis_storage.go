@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -28,7 +29,8 @@ import (
 // just use the LPOP operation on the cards key.
 
 type RedisStorage struct {
-	Client *redis.Client
+	Client    *redis.Client
+	generator *cards.CardGenerator
 }
 
 type RedisConfig struct {
@@ -66,7 +68,7 @@ func NewRedisStorage(config *RedisConfig) (Storage, error) {
 	}
 
 	log.Printf("Successfully connected to Redis")
-	return &RedisStorage{Client: rdb}, nil
+	return &RedisStorage{Client: rdb, generator: cards.NewCardGenerator()}, nil
 }
 
 func NewRedisConfigFromEnvironment() (*RedisConfig, error) {
@@ -108,7 +110,7 @@ func (s *RedisStorage) Create(ctx context.Context, list []cards.Card, shuffled b
 	// Add shuffled attribute.
 	// If this fails, we make a small effort
 	// to delete the key we added previously for the cards.
-	_, err = s.Client.Set(ctx, shuffledKey, shuffled, 0).Result()
+	_, err = s.Client.Set(ctx, shuffledKey, strconv.FormatBool(shuffled), 0).Result()
 	if err != nil {
 		if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
 			log.Printf("Error rolling back key: %v", err)
@@ -198,13 +200,64 @@ func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	return err
 }
 
+// Shuffle re-shuffles the cards currently remaining in the deck and marks it as shuffled.
+//
+// Note that the read-modify-write sequence below (LRange, then Del + RPush) is not atomic,
+// consistent with the rest of this implementation - see the file header comment for details.
+func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	// We don't really need the shuffled attribute here,
+	// but this is how we check that the deck exists before shuffling it.
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return nil, err
+	}
+
+	// Unknown error
+	if err != nil {
+		return nil, err
+	}
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	list, err := s.Client.LRange(ctx, cardsKey, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// We know this is valid because we validate it before inserting.
+	cardList, _ := cards.CodesToCardList(list)
+	cardList = s.generator.Shuffle(cardList)
+
+	// Rewrite the cards list with the new order.
+	// If the deck has no cards left, there's nothing to push back.
+	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+		return nil, err
+	}
+
+	if len(cardList) > 0 {
+		if _, err := s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(cardList)).Result(); err != nil {
+			return nil, err
+		}
+	}
+
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+	if _, err := s.Client.Set(ctx, shuffledKey, strconv.FormatBool(true), 0).Result(); err != nil {
+		return nil, err
+	}
+
+	return &Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    cardList,
+	}, nil
+}
+
 func keyForAttribute(deckID *uuid.UUID, attrName string) string {
 	return fmt.Sprintf("decks:%s:%s", deckID.String(), attrName)
 }
 
 func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UUID) (bool, error) {
 	shuffledKey := keyForAttribute(deckID, "shuffled")
-	_, err := s.Client.Get(ctx, shuffledKey).Result()
+	value, err := s.Client.Get(ctx, shuffledKey).Result()
 
 	// When a key does not exist, Redis gives us a Nil reply
 	if errors.Is(err, redis.Nil) {
@@ -216,5 +269,5 @@ func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UU
 		return false, err
 	}
 
-	return shuffledKey == "true", nil
+	return value == "true", nil
 }
