@@ -107,6 +107,73 @@ func Test__StorageTest(t *testing.T) {
 			err = storage.Delete(context.Background(), deck.DeckID)
 			require.ErrorIs(t, err, ErrDeckNotFound)
 		})
+
+		t.Run(fmt.Sprintf("%s - shuffle with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
+			ID := uuid.New()
+			_, err := storage.Shuffle(context.Background(), &ID)
+			require.ErrorIs(t, err, ErrDeckNotFound)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle keeps the same set of cards and marks the deck as shuffled", storageName), func(t *testing.T) {
+			full := cards.NewCardGenerator().FullCardList()
+			deck, err := storage.Create(context.Background(), full, false)
+			require.NoError(t, err)
+
+			_, err = storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+
+			shuffled, err := storage.Get(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, shuffled.Shuffled)
+			require.Len(t, shuffled.Cards, 52)
+			require.ElementsMatch(t, full, shuffled.Cards)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle changes the order of the cards", storageName), func(t *testing.T) {
+			full := cards.NewCardGenerator().FullCardList()
+			deck, err := storage.Create(context.Background(), full, false)
+			require.NoError(t, err)
+
+			shuffledDeck, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+
+			// With 52 cards, the probability of the shuffle producing the exact
+			// original order is negligible, so we treat this as a safe assertion.
+			require.NotEqual(t, cards.CardListToCodes(full), cards.CardListToCodes(shuffledDeck.Cards))
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle does not bring back drawn cards", storageName), func(t *testing.T) {
+			full := cards.NewCardGenerator().FullCardList()
+			deck, err := storage.Create(context.Background(), full, false)
+			require.NoError(t, err)
+
+			drawn, err := storage.Draw(context.Background(), deck.DeckID, 2)
+			require.NoError(t, err)
+			require.Len(t, drawn, 2)
+
+			shuffledDeck, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.Len(t, shuffledDeck.Cards, 50)
+
+			drawnCodes := cards.CardListToCodes(drawn)
+			for _, code := range cards.CardListToCodes(shuffledDeck.Cards) {
+				require.NotContains(t, drawnCodes, code)
+			}
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle on an empty deck -> no-op success", storageName), func(t *testing.T) {
+			initial := []cards.Card{{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)}}
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			_, err = storage.Draw(context.Background(), deck.DeckID, 1)
+			require.NoError(t, err)
+
+			shuffledDeck, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.Equal(t, 0, shuffledDeck.Remaining())
+			require.True(t, shuffledDeck.Shuffled)
+		})
 	})
 }
 
