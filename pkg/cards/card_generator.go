@@ -53,8 +53,21 @@ func (g *CardGenerator) FullCardList() []Card {
 }
 
 func (g *CardGenerator) Shuffle(list []Card) []Card {
+	return shuffleWithRand(list, g.rand)
+}
+
+// Shuffle randomizes the order of the given list of cards in place, and
+// returns it. It relies on the math/rand global source, which is
+// automatically seeded, so callers don't need to manage a *CardGenerator
+// just to shuffle an existing list (e.g. re-shuffling a deck's remaining
+// cards in the storage layer).
+func Shuffle(list []Card) []Card {
+	return shuffleWithRand(list, rand.New(rand.NewSource(time.Now().UnixNano())))
+}
+
+func shuffleWithRand(list []Card, r *rand.Rand) []Card {
 	for i := range list {
-		j := g.rand.Intn(i + 1)
+		j := r.Intn(i + 1)
 		list[i], list[j] = list[j], list[i]
 	}
 
