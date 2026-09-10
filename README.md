@@ -13,7 +13,6 @@ An HTTP API for managing decks of cards.
     - [Example - create a default deck (unshuffled, all cards)](#example---create-a-default-deck-unshuffled-all-cards)
     - [Example - create a shuffled deck (all cards)](#example---create-a-shuffled-deck-all-cards)
     - [Example - create an unshuffled deck with specific cards](#example---create-an-unshuffled-deck-with-specific-cards)
-    - [Example - create a shuffled deck with specific cards](#example---create-a-shuffled-deck-with-specific-cards)
   - [Opening a deck](#opening-a-deck)
     - [Params](#params)
     - [Responses](#responses-1)
