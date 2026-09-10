@@ -40,6 +40,7 @@ func (s *Server) InitRouter() {
 	s.router.HandleFunc(basePath+"/decks", s.CreateDeck).Methods(http.MethodPost)
 	s.router.HandleFunc(basePath+"/decks/{deck_id}", s.OpenDeck).Methods(http.MethodGet)
 	s.router.HandleFunc(basePath+"/decks/{deck_id}/draw", s.DrawCards).Methods(http.MethodPost)
+	s.router.HandleFunc(basePath+"/decks/{deck_id}/shuffle", s.ShuffleDeck).Methods(http.MethodPost)
 	s.router.HandleFunc(basePath+"/decks/{deck_id}", s.DeleteDeck).Methods(http.MethodDelete)
 	s.router.HandleFunc("/", s.HealthCheck).Methods(http.MethodGet)
 	s.router.Use(authMiddleware)
@@ -133,6 +134,47 @@ func (s *Server) DrawCards(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Unknown error drawing cards: %v", err)
+	http.Error(w, "unknown error", http.StatusInternalServerError)
+}
+
+func (s *Server) ShuffleDeck(w http.ResponseWriter, r *http.Request) {
+	deckID, err := uuid.Parse(mux.Vars(r)["deck_id"])
+	if err != nil {
+		http.Error(w, "invalid deck ID", http.StatusBadRequest)
+		return
+	}
+
+	deck, err := s.storage.Get(r.Context(), &deckID)
+	if err != nil {
+		if errors.Is(err, storage.ErrDeckNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		log.Printf("Unknown error fetching deck to shuffle: %v", err)
+		http.Error(w, "unknown error", http.StatusInternalServerError)
+		return
+	}
+
+	// Shuffle a copy of the deck's cards, so we don't mutate
+	// the storage's internal state before it is actually persisted.
+	shuffledCards := make([]cards.Card, len(deck.Cards))
+	copy(shuffledCards, deck.Cards)
+	s.generator.Shuffle(shuffledCards)
+
+	deck, err = s.storage.Shuffle(r.Context(), &deckID, shuffledCards)
+	if err == nil {
+		response := newShuffleDeckResponse(deck)
+		respondWithJSON(w, http.StatusOK, &response)
+		return
+	}
+
+	if errors.Is(err, storage.ErrDeckNotFound) {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	log.Printf("Unknown error shuffling deck: %v", err)
 	http.Error(w, "unknown error", http.StatusInternalServerError)
 }
 
