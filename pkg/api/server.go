@@ -40,6 +40,7 @@ func (s *Server) InitRouter() {
 	s.router.HandleFunc(basePath+"/decks", s.CreateDeck).Methods(http.MethodPost)
 	s.router.HandleFunc(basePath+"/decks/{deck_id}", s.OpenDeck).Methods(http.MethodGet)
 	s.router.HandleFunc(basePath+"/decks/{deck_id}/draw", s.DrawCards).Methods(http.MethodPost)
+	s.router.HandleFunc(basePath+"/decks/{deck_id}/shuffle", s.ReshuffleDeck).Methods(http.MethodPost)
 	s.router.HandleFunc(basePath+"/decks/{deck_id}", s.DeleteDeck).Methods(http.MethodDelete)
 	s.router.HandleFunc("/", s.HealthCheck).Methods(http.MethodGet)
 	s.router.Use(authMiddleware)
@@ -133,6 +134,41 @@ func (s *Server) DrawCards(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Unknown error drawing cards: %v", err)
+	http.Error(w, "unknown error", http.StatusInternalServerError)
+}
+
+func (s *Server) ReshuffleDeck(w http.ResponseWriter, r *http.Request) {
+	deckID, err := uuid.Parse(mux.Vars(r)["deck_id"])
+	if err != nil {
+		http.Error(w, "invalid deck ID", http.StatusBadRequest)
+		return
+	}
+
+	deck, err := s.storage.Get(r.Context(), &deckID)
+	if err != nil {
+		if errors.Is(err, storage.ErrDeckNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	shuffledCards := s.generator.Shuffle(deck.Cards)
+	deck, err = s.storage.Shuffle(r.Context(), &deckID, shuffledCards)
+	if err == nil {
+		response := newReshuffleDeckResponse(deck)
+		respondWithJSON(w, http.StatusOK, &response)
+		return
+	}
+
+	if errors.Is(err, storage.ErrDeckNotFound) {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	log.Printf("Unknown error reshuffling deck: %v", err)
 	http.Error(w, "unknown error", http.StatusInternalServerError)
 }
 

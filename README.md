@@ -21,9 +21,13 @@ An HTTP API for managing decks of cards.
     - [Params](#params-1)
     - [Responses](#responses-2)
     - [Example - draw single card from deck](#example---draw-single-card-from-deck)
-  - [Deleting a deck](#deleting-a-deck)
+  - [Reshuffling a deck](#reshuffling-a-deck)
     - [Params](#params-2)
     - [Responses](#responses-3)
+    - [Example - reshuffle a deck](#example---reshuffle-a-deck)
+  - [Deleting a deck](#deleting-a-deck)
+    - [Params](#params-3)
+    - [Responses](#responses-4)
     - [Example - delete a deck](#example---delete-a-deck)
 
 
@@ -221,6 +225,66 @@ If the `deck_id` specified does not exist, 404 is returned.
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/draw?count=1
+```
+
+### Reshuffling a deck
+
+```
+POST /api/v1alpha/decks/:deck_id/shuffle
+```
+
+Reshuffles the cards currently remaining in the deck, in place. Cards that have already been drawn are not brought back into the deck. The deck is marked as shuffled after this operation.
+
+#### Params
+
+- `deck_id` (**required**) - the ID of the deck to reshuffle.
+
+#### Responses
+
+<b>200 OK</b>
+
+```json
+{
+  "deck_id": "bbf72234-b1a7-4671-aa47-1d75a99476a7",
+  "shuffled": true,
+  "remaining": 4,
+  "cards": [
+    {
+      "Value": "KING",
+      "Suit": "SPADES",
+      "Code": "KS"
+    },
+    {
+      "Value": "2",
+      "Suit": "CLUBS",
+      "Code": "2C"
+    },
+    {
+      "Value": "ACE",
+      "Suit": "HEARTS",
+      "Code": "AH"
+    },
+    {
+      "Value": "3",
+      "Suit": "DIAMONDS",
+      "Code": "3D"
+    }
+  ]
+}
+```
+
+<b>400 Bad Request</b>
+
+If the `deck_id` specified is not a valid UUID, 400 is returned.
+
+<b>404 Not Found</b>
+
+If the `deck_id` specified does not exist, 404 is returned.
+
+#### Example - reshuffle a deck
+
+```
+curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/shuffle
 ```
 
 ### Deleting a deck

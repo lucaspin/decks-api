@@ -182,6 +182,45 @@ func (s *RedisStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) (
 	return cardList, nil
 }
 
+func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID, list []cards.Card) (*Deck, error) {
+	// We don't really need the shuffled attribute here,
+	// but this is how we check that the deck exists before shuffling it.
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return nil, err
+	}
+
+	// Unknown error
+	if err != nil {
+		return nil, err
+	}
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+
+	// Replace the current card order with the new, shuffled one.
+	_, err = s.Client.Del(ctx, cardsKey).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(list)).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.Client.Set(ctx, shuffledKey, strconv.FormatBool(true), 0).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    list,
+	}, nil
+}
+
 func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	// We don't really need the shuffled attribute here,
 	// but this is how we check that the deck exists before deleting it.
