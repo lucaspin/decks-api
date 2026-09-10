@@ -198,13 +198,49 @@ func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	return err
 }
 
+func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID, list []cards.Card) (*Deck, error) {
+	// We don't really need the shuffled attribute here,
+	// but this is how we check that the deck exists before shuffling it.
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return nil, err
+	}
+
+	// Unknown error
+	if err != nil {
+		return nil, err
+	}
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+
+	// Replace the cards list with the new (shuffled) order.
+	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+		return nil, err
+	}
+
+	if _, err := s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(list)).Result(); err != nil {
+		return nil, err
+	}
+
+	if _, err := s.Client.Set(ctx, shuffledKey, true, 0).Result(); err != nil {
+		return nil, err
+	}
+
+	return &Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    list,
+	}, nil
+}
+
 func keyForAttribute(deckID *uuid.UUID, attrName string) string {
 	return fmt.Sprintf("decks:%s:%s", deckID.String(), attrName)
 }
 
 func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UUID) (bool, error) {
 	shuffledKey := keyForAttribute(deckID, "shuffled")
-	_, err := s.Client.Get(ctx, shuffledKey).Result()
+	value, err := s.Client.Get(ctx, shuffledKey).Result()
 
 	// When a key does not exist, Redis gives us a Nil reply
 	if errors.Is(err, redis.Nil) {
@@ -216,5 +252,6 @@ func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UU
 		return false, err
 	}
 
-	return shuffledKey == "true", nil
+	// go-redis encodes bool values as "1" (true) or "0" (false).
+	return value == "1", nil
 }

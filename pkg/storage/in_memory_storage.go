@@ -77,3 +77,18 @@ func (s *InMemoryStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	delete(s.decks, deckID.String())
 	return nil
 }
+
+func (s *InMemoryStorage) Shuffle(ctx context.Context, deckID *uuid.UUID, list []cards.Card) (*Deck, error) {
+	if _, ok := s.decks[deckID.String()]; !ok {
+		return nil, ErrDeckNotFound
+	}
+
+	deck := Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    list,
+	}
+
+	s.decks[deckID.String()] = deck
+	return &deck, nil
+}
