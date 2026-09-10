@@ -31,6 +31,13 @@ type DrawCardsResponse struct {
 	Cards []Card `json:"cards"`
 }
 
+type ReshuffleDeckResponse struct {
+	DeckID    *uuid.UUID `json:"deck_id"`
+	Shuffled  bool       `json:"shuffled"`
+	Remaining int        `json:"remaining"`
+	Cards     []Card     `json:"cards"`
+}
+
 type Card struct {
 	Value string
 	Suit  string
@@ -38,32 +45,36 @@ type Card struct {
 }
 
 func newOpenDeckResponse(deck *storage.Deck) OpenDeckResponse {
-	cards := make([]Card, len(deck.Cards))
-	for i, c := range deck.Cards {
-		cards[i] = Card{
-			Value: c.Rank.String(),
-			Suit:  c.Suit.String(),
-			Code:  c.Code(),
-		}
-	}
-
 	return OpenDeckResponse{
 		DeckID:    deck.DeckID,
 		Shuffled:  deck.Shuffled,
 		Remaining: deck.Remaining(),
-		Cards:     cards,
+		Cards:     cardListToResponseCards(deck.Cards),
 	}
 }
 
 func newDrawCardsResponse(deckCards []cards.Card) DrawCardsResponse {
-	cards := make([]Card, len(deckCards))
+	return DrawCardsResponse{Cards: cardListToResponseCards(deckCards)}
+}
+
+func newReshuffleDeckResponse(deck *storage.Deck) ReshuffleDeckResponse {
+	return ReshuffleDeckResponse{
+		DeckID:    deck.DeckID,
+		Shuffled:  deck.Shuffled,
+		Remaining: deck.Remaining(),
+		Cards:     cardListToResponseCards(deck.Cards),
+	}
+}
+
+func cardListToResponseCards(deckCards []cards.Card) []Card {
+	list := make([]Card, len(deckCards))
 	for i, c := range deckCards {
-		cards[i] = Card{
+		list[i] = Card{
 			Value: c.Rank.String(),
 			Suit:  c.Suit.String(),
 			Code:  c.Code(),
 		}
 	}
 
-	return DrawCardsResponse{Cards: cards}
+	return list
 }

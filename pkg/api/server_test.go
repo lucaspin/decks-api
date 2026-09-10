@@ -152,6 +152,48 @@ func Test__DrawCards(t *testing.T) {
 	})
 }
 
+func Test__ReshuffleDeck(t *testing.T) {
+	testServer := NewServer(storage.NewInMemoryStorage())
+
+	t.Run("invalid deck ID -> 400", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/not-a-valid-uuid/shuffle", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid deck ID\n")
+	})
+
+	t.Run("deck that does not exist -> 404", func(t *testing.T) {
+		ID := uuid.New()
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+ID.String()+"/shuffle", nil)
+		require.Equal(t, response.Code, 404)
+	})
+
+	t.Run("deck that exists -> 200, cards reordered, deck marked as shuffled", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		before := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&before))
+
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+		reshuffleResponse := &ReshuffleDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&reshuffleResponse))
+		require.Equal(t, deckID, reshuffleResponse.DeckID.String())
+		require.True(t, reshuffleResponse.Shuffled)
+		require.Equal(t, before.Remaining, reshuffleResponse.Remaining)
+		require.ElementsMatch(t, before.Cards, reshuffleResponse.Cards)
+
+		// the deck itself reflects the new state when opened again
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		after := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&after))
+		require.True(t, after.Shuffled)
+		require.Equal(t, reshuffleResponse.Cards, after.Cards)
+	})
+}
+
 func Test__DeleteDeck(t *testing.T) {
 	testServer := NewServer(storage.NewInMemoryStorage())
 
