@@ -55,6 +55,20 @@ func newOpenDeckResponse(deck *storage.Deck) OpenDeckResponse {
 	}
 }
 
+type ShuffleDeckResponse struct {
+	DeckID    *uuid.UUID `json:"deck_id"`
+	Shuffled  bool       `json:"shuffled"`
+	Remaining int        `json:"remaining"`
+}
+
+func newShuffleDeckResponse(deck *storage.Deck) ShuffleDeckResponse {
+	return ShuffleDeckResponse{
+		DeckID:    deck.DeckID,
+		Shuffled:  deck.Shuffled,
+		Remaining: deck.Remaining(),
+	}
+}
+
 func newDrawCardsResponse(deckCards []cards.Card) DrawCardsResponse {
 	cards := make([]Card, len(deckCards))
 	for i, c := range deckCards {
