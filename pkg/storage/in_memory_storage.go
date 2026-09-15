@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"math/rand"
 
 	"github.com/google/uuid"
 	"github.com/lucaspin/decks-api/pkg/cards"
@@ -67,6 +68,28 @@ func (s *InMemoryStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int
 	}
 
 	return cards, nil
+}
+
+func (s *InMemoryStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	deck, ok := s.decks[deckID.String()]
+	if !ok {
+		return nil, ErrDeckNotFound
+	}
+
+	shuffled := make([]cards.Card, len(deck.Cards))
+	copy(shuffled, deck.Cards)
+	rand.Shuffle(len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	})
+
+	updated := Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    shuffled,
+	}
+
+	s.decks[deckID.String()] = updated
+	return &updated, nil
 }
 
 func (s *InMemoryStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {

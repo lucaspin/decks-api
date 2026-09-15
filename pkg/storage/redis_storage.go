@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"time"
 
@@ -179,6 +180,38 @@ func (s *RedisStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) (
 	// We know this is valid because we validate it before inserting.
 	cardList, _ := cards.CodesToCardList(list)
 	return cardList, nil
+}
+
+func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	deck, err := s.Get(ctx, deckID)
+	if err != nil {
+		return nil, err
+	}
+
+	rand.Shuffle(len(deck.Cards), func(i, j int) {
+		deck.Cards[i], deck.Cards[j] = deck.Cards[j], deck.Cards[i]
+	})
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+
+	// Replace the cards list with the newly shuffled order.
+	// This isn't atomic - see the file header comment for the caveats
+	// of this storage implementation.
+	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+		return nil, err
+	}
+
+	if _, err := s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(deck.Cards)).Result(); err != nil {
+		return nil, err
+	}
+
+	if _, err := s.Client.Set(ctx, shuffledKey, true, 0).Result(); err != nil {
+		return nil, err
+	}
+
+	deck.Shuffled = true
+	return deck, nil
 }
 
 func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
