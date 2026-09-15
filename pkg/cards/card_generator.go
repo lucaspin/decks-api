@@ -60,3 +60,16 @@ func (g *CardGenerator) Shuffle(list []Card) []Card {
 
 	return list
 }
+
+// ShuffleCards re-orders the given list of cards in place, returning it for convenience.
+//
+// This is a package-level alternative to CardGenerator.Shuffle, for callers - like the
+// storage layer - that need to re-shuffle an existing list of cards without owning
+// a CardGenerator instance.
+func ShuffleCards(list []Card) []Card {
+	rand.Shuffle(len(list), func(i, j int) {
+		list[i], list[j] = list[j], list[i]
+	})
+
+	return list
+}

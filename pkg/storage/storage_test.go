@@ -78,6 +78,41 @@ func Test__StorageTest(t *testing.T) {
 			require.Len(t, deck.Cards, 1)
 		})
 
+		t.Run(fmt.Sprintf("%s - shuffle with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
+			ID := uuid.New()
+			_, err := storage.Shuffle(context.Background(), &ID)
+			require.ErrorIs(t, err, ErrDeckNotFound)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle with existing deck -> deck is marked as shuffled, same cards, new order", storageName), func(t *testing.T) {
+			initial := []cards.Card{}
+			for _, suit := range cards.AllSuits() {
+				for i := 1; i <= 13; i++ {
+					initial = append(initial, cards.Card{Suit: suit, Rank: cards.CardRank(i)})
+				}
+			}
+
+			// Storage implementations may keep a reference to the given slice, so we
+			// keep a copy to compare against after shuffling.
+			originalOrder := make([]cards.Card, len(initial))
+			copy(originalOrder, initial)
+
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, shuffled.Shuffled)
+			require.ElementsMatch(t, originalOrder, shuffled.Cards)
+			require.NotEqual(t, originalOrder, shuffled.Cards)
+
+			// the new order is persisted
+			fetched, err := storage.Get(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.True(t, fetched.Shuffled)
+			require.Equal(t, shuffled.Cards, fetched.Cards)
+		})
+
 		t.Run(fmt.Sprintf("%s - delete with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
 			ID := uuid.New()
 			err := storage.Delete(context.Background(), &ID)
