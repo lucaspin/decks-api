@@ -207,9 +207,6 @@ func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, e
 	shuffledList := s.generator.Shuffle(cardList)
 	shuffledCodes := cards.CardListToCodes(shuffledList)
 
-	// Rewrite the cards key with the new order.
-	// If pushing the new order fails, we make a small effort
-	// to restore the original order that was there before.
 	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
 		return nil, err
 	}
