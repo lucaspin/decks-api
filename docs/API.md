@@ -1,6 +1,6 @@
 # API reference
 
-HTTP API reference for the decks service: routes, parameters, response codes, and example requests.
+HTTP API reference for the decks service.
 
 ## Table of contents
 
