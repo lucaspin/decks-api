@@ -190,7 +190,6 @@ func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID, list []ca
 		return nil, err
 	}
 
-	// Unknown error
 	if err != nil {
 		return nil, err
 	}
