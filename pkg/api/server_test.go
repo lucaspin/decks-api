@@ -152,6 +152,47 @@ func Test__DrawCards(t *testing.T) {
 	})
 }
 
+func Test__ReshuffleDeck(t *testing.T) {
+	testServer := NewServer(storage.NewInMemoryStorage())
+
+	t.Run("invalid deck ID -> 400", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/not-a-valid-uuid/shuffle", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid deck ID\n")
+	})
+
+	t.Run("deck that does not exist -> 404", func(t *testing.T) {
+		ID := uuid.New()
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+ID.String()+"/shuffle", nil)
+		require.Equal(t, response.Code, 404)
+	})
+
+	t.Run("deck that exists -> 200 with proper response", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		// a card is drawn, so not all cards are left in the deck.
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=4", nil)
+		require.Equal(t, response.Code, 200)
+
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+
+		reshuffleResponse := &ReshuffleDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&reshuffleResponse))
+		require.Equal(t, deckID, reshuffleResponse.DeckID.String())
+		require.True(t, reshuffleResponse.Shuffled)
+		require.Equal(t, 48, reshuffleResponse.Remaining)
+
+		// the deck is now marked as shuffled and keeps the same remaining count.
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		openResponse := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&openResponse))
+		require.True(t, openResponse.Shuffled)
+		require.Equal(t, 48, openResponse.Remaining)
+	})
+}
+
 func Test__DeleteDeck(t *testing.T) {
 	testServer := NewServer(storage.NewInMemoryStorage())
 
