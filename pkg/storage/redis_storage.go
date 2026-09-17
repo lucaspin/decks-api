@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -108,7 +109,7 @@ func (s *RedisStorage) Create(ctx context.Context, list []cards.Card, shuffled b
 	// Add shuffled attribute.
 	// If this fails, we make a small effort
 	// to delete the key we added previously for the cards.
-	_, err = s.Client.Set(ctx, shuffledKey, shuffled, 0).Result()
+	_, err = s.Client.Set(ctx, shuffledKey, strconv.FormatBool(shuffled), 0).Result()
 	if err != nil {
 		if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
 			log.Printf("Error rolling back key: %v", err)
@@ -181,6 +182,61 @@ func (s *RedisStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) (
 	return cardList, nil
 }
 
+func (s *RedisStorage) Reshuffle(ctx context.Context, deckID *uuid.UUID, shuffle ShuffleFunc) (*Deck, error) {
+	// We don't really need the shuffled attribute here,
+	// but this is how we check that the deck exists before reshuffling it.
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return nil, err
+	}
+
+	// Unknown error
+	if err != nil {
+		return nil, err
+	}
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	list, err := s.Client.LRange(ctx, cardsKey, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// We know this is valid because we validate it before inserting.
+	cardList, _ := cards.CodesToCardList(list)
+	reshuffled := shuffle(cardList)
+
+	// Rewrite the cards list with the new order.
+	// If this fails, there's nothing meaningful to roll back,
+	// since we haven't changed the shuffled key yet.
+	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+		return nil, err
+	}
+
+	if _, err := s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(reshuffled)).Result(); err != nil {
+		return nil, err
+	}
+
+	// Mark the deck as shuffled.
+	// If this fails, we make a small effort
+	// to restore the cards key to its previous order.
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+	if _, err := s.Client.Set(ctx, shuffledKey, "true", 0).Result(); err != nil {
+		if _, delErr := s.Client.Del(ctx, cardsKey).Result(); delErr != nil {
+			log.Printf("Error rolling back key: %v", delErr)
+		} else if _, pushErr := s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(cardList)).Result(); pushErr != nil {
+			log.Printf("Error rolling back key: %v", pushErr)
+		}
+
+		return nil, err
+	}
+
+	return &Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    reshuffled,
+	}, nil
+}
+
 func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	// We don't really need the shuffled attribute here,
 	// but this is how we check that the deck exists before deleting it.
@@ -204,7 +260,7 @@ func keyForAttribute(deckID *uuid.UUID, attrName string) string {
 
 func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UUID) (bool, error) {
 	shuffledKey := keyForAttribute(deckID, "shuffled")
-	_, err := s.Client.Get(ctx, shuffledKey).Result()
+	value, err := s.Client.Get(ctx, shuffledKey).Result()
 
 	// When a key does not exist, Redis gives us a Nil reply
 	if errors.Is(err, redis.Nil) {
@@ -216,5 +272,5 @@ func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UU
 		return false, err
 	}
 
-	return shuffledKey == "true", nil
+	return value == "true", nil
 }
