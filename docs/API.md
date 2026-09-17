@@ -1,218 +1,79 @@
 # API
 
-- [Authentication](#authentication)
-- [Creating a deck](#creating-a-deck)
-  - [Parameters](#parameters)
-  - [Responses](#responses)
-  - [Example - create a default deck (unshuffled, all cards)](#example---create-a-default-deck-unshuffled-all-cards)
-  - [Example - create a shuffled deck (all cards)](#example---create-a-shuffled-deck-all-cards)
-  - [Example - create an unshuffled deck with specific cards](#example---create-an-unshuffled-deck-with-specific-cards)
-  - [Example - create a shuffled deck with specific cards](#example---create-a-shuffled-deck-with-specific-cards)
-- [Opening a deck](#opening-a-deck)
-  - [Params](#params)
-  - [Responses](#responses-1)
-- [Drawing cards from a deck](#drawing-cards-from-a-deck)
-  - [Params](#params-1)
-  - [Responses](#responses-2)
-  - [Example - draw single card from deck](#example---draw-single-card-from-deck)
-- [Re-shuffling a deck](#re-shuffling-a-deck)
-  - [Params](#params-2)
-  - [Responses](#responses-3)
-  - [Example - re-shuffle a deck](#example---re-shuffle-a-deck)
-- [Deleting a deck](#deleting-a-deck)
-  - [Params](#params-3)
-  - [Responses](#responses-4)
-  - [Example - delete a deck](#example---delete-a-deck)
+All endpoints are served under `/api/v1alpha`. The base URL in the examples is `http://localhost:4000`.
 
 ## Authentication
 
-There was no requirement about authentication on the task description, so I decided not to implement it. The API is currently behind no authentication. However, I did register a [auth middleware](../pkg/api/auth.go), so if authentication is needed, that would be a good place to put it.
+The API is currently behind no authentication, as it was not part of the task. An [auth middleware](../pkg/api/auth.go) is registered as a placeholder for when it is needed.
 
 ## Creating a deck
 
 ```
-POST /api/v1alpha/decks
+POST /decks
 ```
 
-### Parameters
+Parameters:
+- `shuffled` (optional) - whether the cards are shuffled. Default: `false`.
+- `cards` (optional) - comma-separated card codes to include. Defaults to all 52 cards.
 
-- `shuffled` (optional) - determines if the cards in the deck will be shuffled or not. Default: false.
-- `cards` (optional) - comma-separated list of card codes to include in the deck. If this is not specified, a deck with all 52 cards is created.
+Responses:
+- `201 Created` - `{ "deck_id": "...", "shuffled": false, "remaining": 52 }`
+- `400 Bad Request` - a code in `cards` is invalid.
 
-### Responses
-
-<b>201 Created</b>
-
-```json
-{
-  "deck_id": "289970dd-32b0-4c88-a4c0-d2b2d1fbc53c",
-  "shuffled": false,
-  "remaining": 52
-}
-```
-
-<b>400 Bad Request</b>
-
-If the card codes specified in the `cards` parameter contains an invalid code, a 400 is returned.
-
-### Example - create a default deck (unshuffled, all cards)
+Examples:
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks
-```
-
-### Example - create a shuffled deck (all cards)
-
-```
-curl -X POST http://localhost:4000/api/v1alpha/decks?shuffled=true
-```
-
-### Example - create an unshuffled deck with specific cards
-
-```
-curl -X POST http://localhost:4000/api/v1alpha/decks?cards=AH,2C,3D,KS
-```
-
-### Example - create a shuffled deck with specific cards
-
-```
-curl -X POST http://localhost:4000/api/v1alpha/decks?cards=AH,2C,3D,KS&shuffled=true
+curl -X POST "http://localhost:4000/api/v1alpha/decks?shuffled=true"
+curl -X POST "http://localhost:4000/api/v1alpha/decks?cards=AH,2C,3D,KS"
+curl -X POST "http://localhost:4000/api/v1alpha/decks?cards=AH,2C,3D,KS&shuffled=true"
 ```
 
 ## Opening a deck
 
 ```
-GET /api/v1alpha/decks/:deck_id
+GET /decks/:deck_id
 ```
 
-### Params
-
-- `deck_id` (**required**) - the ID of the deck to open
-
-### Responses
-
-<b>200 OK</b>
-
-```json
-{
-  "deck_id": "bbf72234-b1a7-4671-aa47-1d75a99476a7",
-  "shuffled": true,
-  "remaining": 4,
-  "cards": [
-    {
-      "Value": "KING",
-      "Suit": "SPADES",
-      "Code": "KS"
-    },
-    {
-      "Value": "2",
-      "Suit": "CLUBS",
-      "Code": "2C"
-    },
-    {
-      "Value": "ACE",
-      "Suit": "HEARTS",
-      "Code": "AH"
-    },
-    {
-      "Value": "3",
-      "Suit": "DIAMONDS",
-      "Code": "3D"
-    }
-  ]
-}
-```
-
-<b>400 Bad Request</b>
-
-If the `deck_id` specified is not a valid UUID, 400 is returned.
-
-<b>404 Not Found</b>
-
-If the `deck_id` specified does not exist, 404 is returned.
+Responses:
+- `200 OK` - deck with `deck_id`, `shuffled`, `remaining`, and the full `cards` list.
+- `400 Bad Request` - `deck_id` is not a valid UUID.
+- `404 Not Found` - `deck_id` does not exist.
 
 ## Drawing cards from a deck
 
 ```
-POST /api/v1alpha/decks/:deck_id/draw
+POST /decks/:deck_id/draw
 ```
 
-### Params
+Parameters:
+- `count` (**required**) - positive integer number of cards to draw. If larger than the remaining count, all cards are returned.
 
-- `deck_id` (**required**) - the ID of the deck to draw cards from.
-- `count` (**required**) - how many cards to draw from the deck. This must be a positive integer. If this number is bigger than the current number of cards in the deck, all the cards in the deck are returned.
+Responses:
+- `200 OK` - `{ "cards": [ ... ] }`
+- `400 Bad Request` - invalid `deck_id`, missing/invalid `count`, or empty deck.
+- `404 Not Found` - `deck_id` does not exist.
 
-### Responses
-
-<b>200 OK</b>
-
-```json
-{
-  "cards": [
-    {
-      "Value": "KING",
-      "Suit": "SPADES",
-      "Code": "KS"
-    },
-    {
-      "Value": "2",
-      "Suit": "CLUBS",
-      "Code": "2C"
-    }
-  ]
-}
-```
-
-<b>400 Bad Request</b>
-
-A 400 status code is returned when:
-- The `deck_id` specified is not a valid UUID.
-- The `count` parameter is not specified, or it is not a valid positive integer.
-- The deck is already empty.
-
-<b>404 Not Found</b>
-
-If the `deck_id` specified does not exist, 404 is returned.
-
-### Example - draw single card from deck
+Example:
 
 ```
-curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/draw?count=1
+curl -X POST "http://localhost:4000/api/v1alpha/decks/{deck_id}/draw?count=1"
 ```
 
 ## Re-shuffling a deck
 
 ```
-POST /api/v1alpha/decks/:deck_id/shuffle
+POST /decks/:deck_id/shuffle
 ```
 
-Randomizes the order of the cards still remaining in the deck. Cards that have already been drawn are not affected.
+Randomizes the order of the remaining cards. Already-drawn cards are not affected.
 
-### Params
+Responses:
+- `200 OK` - `{ "deck_id": "...", "shuffled": true, "remaining": 52 }`
+- `400 Bad Request` - `deck_id` is not a valid UUID.
+- `404 Not Found` - `deck_id` does not exist.
 
-- `deck_id` (**required**) - the ID of the deck to shuffle.
-
-### Responses
-
-<b>200 OK</b>
-
-```json
-{
-  "deck_id": "289970dd-32b0-4c88-a4c0-d2b2d1fbc53c",
-  "shuffled": true,
-  "remaining": 52
-}
-```
-
-<b>400 Bad Request</b>
-
-If the `deck_id` specified is not a valid UUID, 400 is returned.
-
-<b>404 Not Found</b>
-
-If the `deck_id` specified does not exist, 404 is returned.
-
-### Example - re-shuffle a deck
+Example:
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/shuffle
@@ -221,28 +82,15 @@ curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/shuffle
 ## Deleting a deck
 
 ```
-DELETE /api/v1alpha/decks/:deck_id
+DELETE /decks/:deck_id
 ```
 
-### Params
+Responses:
+- `204 No Content` - the deck was deleted.
+- `400 Bad Request` - `deck_id` is not a valid UUID.
+- `404 Not Found` - `deck_id` does not exist.
 
-- `deck_id` (**required**) - the ID of the deck to delete.
-
-### Responses
-
-<b>204 No Content</b>
-
-The deck was deleted successfully. No response body is returned.
-
-<b>400 Bad Request</b>
-
-If the `deck_id` specified is not a valid UUID, 400 is returned.
-
-<b>404 Not Found</b>
-
-If the `deck_id` specified does not exist, 404 is returned.
-
-### Example - delete a deck
+Example:
 
 ```
 curl -X DELETE http://localhost:4000/api/v1alpha/decks/{deck_id}

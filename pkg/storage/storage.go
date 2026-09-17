@@ -28,9 +28,6 @@ type Storage interface {
 	Get(ctx context.Context, deckID *uuid.UUID) (*Deck, error)
 	Draw(ctx context.Context, deckID *uuid.UUID, count int) ([]cards.Card, error)
 	Delete(ctx context.Context, deckID *uuid.UUID) error
-
-	// Shuffle replaces the remaining cards of an existing deck with the given list,
-	// which the caller is expected to have already randomized, and marks the deck as shuffled.
 	Shuffle(ctx context.Context, deckID *uuid.UUID, cards []cards.Card) (*Deck, error)
 }
 
