@@ -2,6 +2,14 @@
 
 HTTP API reference for the decks service: routes, parameters, response codes, and example requests.
 
+## Table of contents
+
+- [Authentication](#authentication)
+- [Creating a deck](#creating-a-deck)
+- [Opening a deck](#opening-a-deck)
+- [Drawing cards from a deck](#drawing-cards-from-a-deck)
+- [Shuffling a deck](#shuffling-a-deck)
+- [Deleting a deck](#deleting-a-deck)
 
 ## Authentication
 
