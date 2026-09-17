@@ -28,7 +28,8 @@ import (
 // just use the LPOP operation on the cards key.
 
 type RedisStorage struct {
-	Client *redis.Client
+	Client    *redis.Client
+	generator *cards.CardGenerator
 }
 
 type RedisConfig struct {
@@ -66,7 +67,7 @@ func NewRedisStorage(config *RedisConfig) (Storage, error) {
 	}
 
 	log.Printf("Successfully connected to Redis")
-	return &RedisStorage{Client: rdb}, nil
+	return &RedisStorage{Client: rdb, generator: cards.NewCardGenerator()}, nil
 }
 
 func NewRedisConfigFromEnvironment() (*RedisConfig, error) {
@@ -179,6 +180,58 @@ func (s *RedisStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) (
 	// We know this is valid because we validate it before inserting.
 	cardList, _ := cards.CodesToCardList(list)
 	return cardList, nil
+}
+
+func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	// We don't really need the shuffled attribute here,
+	// but this is how we check that the deck exists before shuffling it.
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return nil, err
+	}
+
+	// Unknown error
+	if err != nil {
+		return nil, err
+	}
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+
+	codes, err := s.Client.LRange(ctx, cardsKey, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// We know this is valid because we validate it before inserting.
+	cardList, _ := cards.CodesToCardList(codes)
+	shuffledList := s.generator.Shuffle(cardList)
+	shuffledCodes := cards.CardListToCodes(shuffledList)
+
+	// Rewrite the cards key with the new order.
+	// If pushing the new order fails, we make a small effort
+	// to restore the original order that was there before.
+	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+		return nil, err
+	}
+
+	if _, err := s.Client.RPush(ctx, cardsKey, shuffledCodes).Result(); err != nil {
+		if _, rollbackErr := s.Client.RPush(ctx, cardsKey, codes).Result(); rollbackErr != nil {
+			log.Printf("Error rolling back key: %v", rollbackErr)
+		}
+
+		return nil, err
+	}
+
+	if _, err := s.Client.Set(ctx, shuffledKey, true, 0).Result(); err != nil {
+		return nil, err
+	}
+
+	return &Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    shuffledList,
+	}, nil
 }
 
 func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {

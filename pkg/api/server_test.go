@@ -152,6 +152,77 @@ func Test__DrawCards(t *testing.T) {
 	})
 }
 
+func Test__ShuffleDeck(t *testing.T) {
+	testServer := NewServer(storage.NewInMemoryStorage())
+
+	t.Run("invalid deck ID -> 400", func(t *testing.T) {
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/not-a-valid-uuid/shuffle", nil)
+		require.Equal(t, response.Code, 400)
+		require.Equal(t, response.Body.String(), "invalid deck ID\n")
+	})
+
+	t.Run("deck that does not exist -> 404", func(t *testing.T) {
+		ID := uuid.New()
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+ID.String()+"/shuffle", nil)
+		require.Equal(t, response.Code, 404)
+	})
+
+	t.Run("deck that exists -> 200, marks it as shuffled and keeps the same cards", func(t *testing.T) {
+		// deck is created
+		deckID := createDeck(t, testServer)
+
+		response := execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		beforeShuffle := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&beforeShuffle))
+
+		// deck is shuffled
+		response = execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+		shuffleResponse := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&shuffleResponse))
+		require.Equal(t, deckID, shuffleResponse.DeckID.String())
+		require.True(t, shuffleResponse.Shuffled)
+		require.Equal(t, beforeShuffle.Remaining, shuffleResponse.Remaining)
+
+		// the deck now reports as shuffled, with the same cards, in a new order
+		response = execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, response.Code, 200)
+		afterShuffle := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&afterShuffle))
+		require.True(t, afterShuffle.Shuffled)
+		require.ElementsMatch(t, beforeShuffle.Cards, afterShuffle.Cards)
+	})
+
+	t.Run("shuffling only reorders the remaining cards", func(t *testing.T) {
+		deckID := createDeck(t, testServer)
+
+		drawResponse := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/draw?count=5", nil)
+		require.Equal(t, drawResponse.Code, 200)
+		drawn := &DrawCardsResponse{}
+		require.NoError(t, json.NewDecoder(drawResponse.Body).Decode(&drawn))
+
+		response := execRequest(testServer, http.MethodPost, "/api/v1alpha/decks/"+deckID+"/shuffle", nil)
+		require.Equal(t, response.Code, 200)
+		shuffleResponse := &CreateDeckResponse{}
+		require.NoError(t, json.NewDecoder(response.Body).Decode(&shuffleResponse))
+		require.True(t, shuffleResponse.Shuffled)
+		require.Equal(t, 47, shuffleResponse.Remaining)
+
+		openResponse := execRequest(testServer, http.MethodGet, "/api/v1alpha/decks/"+deckID, nil)
+		require.Equal(t, openResponse.Code, 200)
+		afterShuffle := &OpenDeckResponse{}
+		require.NoError(t, json.NewDecoder(openResponse.Body).Decode(&afterShuffle))
+		require.Len(t, afterShuffle.Cards, 47)
+
+		for _, drawnCard := range drawn.Cards {
+			for _, remainingCard := range afterShuffle.Cards {
+				require.NotEqual(t, drawnCard.Code, remainingCard.Code)
+			}
+		}
+	})
+}
+
 func Test__DeleteDeck(t *testing.T) {
 	testServer := NewServer(storage.NewInMemoryStorage())
 
