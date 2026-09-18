@@ -137,8 +137,6 @@ func (s *Server) DrawCards(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "unknown error", http.StatusInternalServerError)
 }
 
-// ReshuffleDeck re-shuffles the cards currently remaining in a deck.
-// Cards that have already been drawn are not brought back into the deck.
 func (s *Server) ReshuffleDeck(w http.ResponseWriter, r *http.Request) {
 	deckID, err := uuid.Parse(mux.Vars(r)["deck_id"])
 	if err != nil {
