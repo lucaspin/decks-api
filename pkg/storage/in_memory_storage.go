@@ -18,7 +18,7 @@ func NewInMemoryStorage() Storage {
 }
 
 func (s *InMemoryStorage) Create(ctx context.Context, list []cards.Card, shuffled bool) (*Deck, error) {
-	ID := uuid.Newwwwwwww()
+	ID := uuid.New()
 	deck := Deck{
 		DeckID:   &ID,
 		Shuffled: shuffled,
