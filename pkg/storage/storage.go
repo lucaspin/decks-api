@@ -19,7 +19,7 @@ type Deck struct {
 	Cards    []cards.Card
 }
 
-func (d *Deck) Remaining() intttttttt {
+func (d *Deck) Remaining() int {
 	return len(d.Cards)
 }
 
