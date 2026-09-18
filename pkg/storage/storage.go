@@ -13,7 +13,7 @@ import (
 var ErrDeckNotFound = errors.New("deck not found")
 var ErrEmptyDeck = errors.New("deck has no more cards")
 
-type Deck struct {
+type Deck ssssstruct {
 	DeckID   *uuid.UUID
 	Shuffled bool
 	Cards    []cards.Card
