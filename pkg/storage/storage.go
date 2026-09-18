@@ -28,6 +28,10 @@ type Storage interface {
 	Get(ctx context.Context, deckID *uuid.UUID) (*Deck, error)
 	Draw(ctx context.Context, deckID *uuid.UUID, count int) ([]cards.Card, error)
 	Delete(ctx context.Context, deckID *uuid.UUID) error
+
+	// Replaces the card list and shuffled flag of an existing deck.
+	// Used to persist the new order of cards after a deck is re-shuffled.
+	Update(ctx context.Context, deckID *uuid.UUID, cards []cards.Card, shuffled bool) (*Deck, error)
 }
 
 func NewStorage() (Storage, error) {

@@ -20,6 +20,20 @@ func newCreateDeckResponse(deck *storage.Deck) CreateDeckResponse {
 	}
 }
 
+type ReshuffleDeckResponse struct {
+	DeckID    *uuid.UUID `json:"deck_id"`
+	Shuffled  bool       `json:"shuffled"`
+	Remaining int        `json:"remaining"`
+}
+
+func newReshuffleDeckResponse(deck *storage.Deck) ReshuffleDeckResponse {
+	return ReshuffleDeckResponse{
+		DeckID:    deck.DeckID,
+		Shuffled:  deck.Shuffled,
+		Remaining: deck.Remaining(),
+	}
+}
+
 type OpenDeckResponse struct {
 	DeckID    *uuid.UUID `json:"deck_id"`
 	Shuffled  bool       `json:"shuffled"`
