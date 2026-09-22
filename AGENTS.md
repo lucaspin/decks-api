@@ -8,7 +8,7 @@ HTTP API for managing decks of cards.
 - Module path: `github.com/lucaspin/decks-api`
 - HTTP framework: [gorilla/mux](https://github.com/gorilla/mux)
 - Authentication: none implemented yet
-- Full API reference (routes, params, example curl commands, response shapes): [README.md](./README.md)
+- Full API reference (routes, params, example curl commands, response shapes): [docs/API.md](./docs/API.md)
 
 ## Project layout
 
