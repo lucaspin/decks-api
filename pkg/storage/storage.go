@@ -28,6 +28,7 @@ type Storage interface {
 	Get(ctx context.Context, deckID *uuid.UUID) (*Deck, error)
 	Draw(ctx context.Context, deckID *uuid.UUID, count int) ([]cards.Card, error)
 	Delete(ctx context.Context, deckID *uuid.UUID) error
+	Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error)
 }
 
 func NewStorage() (Storage, error) {

@@ -181,6 +181,69 @@ func (s *RedisStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) (
 	return cardList, nil
 }
 
+func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	// We don't really need the shuffled attribute here,
+	// but this is how we check that the deck exists before shuffling it.
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return nil, err
+	}
+
+	// Unknown error
+	if err != nil {
+		return nil, err
+	}
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+
+	list, err := s.Client.LRange(ctx, cardsKey, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	// We know this is valid because we validate it before inserting.
+	cardList, _ := cards.CodesToCardList(list)
+	shuffled := cards.NewCardGenerator().Shuffle(cardList)
+
+	// Remove the old cards list before pushing the shuffled one.
+	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+		return nil, err
+	}
+
+	// Push the shuffled cards.
+	// If this fails, we make a small effort
+	// to restore the previous, unshuffled, cards list.
+	_, err = s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(shuffled)).Result()
+	if err != nil {
+		if _, err := s.Client.RPush(ctx, cardsKey, list).Result(); err != nil {
+			log.Printf("Error rolling back key: %v", err)
+		}
+
+		return nil, err
+	}
+
+	// Mark the deck as shuffled.
+	// If this fails, we make a small effort
+	// to roll back the cards key to its previous, unshuffled, state.
+	_, err = s.Client.Set(ctx, shuffledKey, true, 0).Result()
+	if err != nil {
+		if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+			log.Printf("Error rolling back key: %v", err)
+		} else if _, err := s.Client.RPush(ctx, cardsKey, list).Result(); err != nil {
+			log.Printf("Error rolling back key: %v", err)
+		}
+
+		return nil, err
+	}
+
+	return &Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    shuffled,
+	}, nil
+}
+
 func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	// We don't really need the shuffled attribute here,
 	// but this is how we check that the deck exists before deleting it.
