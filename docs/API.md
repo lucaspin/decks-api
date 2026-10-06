@@ -1,4 +1,26 @@
-# API
+# API reference
+
+- [Authentication](#authentication)
+- [Creating a deck](#creating-a-deck)
+  - [Parameters](#parameters)
+  - [Responses](#responses)
+  - [Example - create a default deck (unshuffled, all cards)](#example---create-a-default-deck-unshuffled-all-cards)
+  - [Example - create a shuffled deck (all cards)](#example---create-a-shuffled-deck-all-cards)
+  - [Example - create an unshuffled deck with specific cards](#example---create-an-unshuffled-deck-with-specific-cards)
+  - [Example - create a shuffled deck with specific cards](#example---create-a-shuffled-deck-with-specific-cards)
+- [Opening a deck](#opening-a-deck)
+  - [Params](#params)
+  - [Responses](#responses-1)
+- [Drawing cards from a deck](#drawing-cards-from-a-deck)
+  - [Params](#params-1)
+  - [Responses](#responses-2)
+  - [Example - draw single card from deck](#example---draw-single-card-from-deck)
+- [Deleting a deck](#deleting-a-deck)
+  - [Params](#params-2)
+  - [Responses](#responses-3)
+  - [Example - delete a deck](#example---delete-a-deck)
+
+## API
 
 ### Authentication
 

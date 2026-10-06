@@ -8,7 +8,7 @@ HTTP API for managing decks of cards.
 - Module path: `github.com/lucaspin/decks-api`
 - HTTP framework: [gorilla/mux](https://github.com/gorilla/mux)
 - Authentication: none implemented yet
-- Full API reference (routes, params, example curl commands, response shapes): [docs/api.md](./docs/api.md)
+- Full API reference (routes, params, example curl commands, response shapes): [docs/API.md](./docs/API.md)
 
 ## Project layout
 
@@ -90,5 +90,6 @@ Errors from the storage layer are sentinel values (`storage.ErrDeckNotFound`, `s
 ## Contribution guidance for agents
 
 - Run `gofmt -l .` and `make test` before committing.
-- Keep `docs/api.md` in sync with any change to API behavior or request/response shapes. Storage backend notes still belong in `README.md`.
+- Keep `docs/API.md` in sync with any change to API behavior, request shapes, or response shapes.
+- Keep `README.md` in sync with any change to storage backends.
 - Avoid introducing new dependencies without checking `go.mod`/`go.sum`; run `go mod tidy` if you do.
