@@ -1,23 +1,23 @@
-## API
+# API
 
-### Authentication
+## Authentication
 
 There was no requirement about authentication on the task description, so I decided not to implement it. The API is currently behind no authentication. However, I did register a [auth middleware](../pkg/api/auth.go), so if authentication is needed, that would be a good place to put it.
 
-### Creating a deck
+## Creating a deck
 
 ```
 POST /api/v1alpha/decks
 ```
 
-#### Parameters
+### Parameters
 
 - `shuffled` (optional) - determines if the cards in the deck will be shuffled or not. Default: false.
 - `cards` (optional) - comma-separated list of card codes to include in the deck. If this is not specified, a deck with all 52 cards is created.
 
-#### Responses
+### Responses
 
-<b>201 Created</b>
+**201 Created**
 
 ```json
 {
@@ -27,47 +27,47 @@ POST /api/v1alpha/decks
 }
 ```
 
-<b>400 Bad Request</b>
+**400 Bad Request**
 
 If the card codes specified in the `cards` parameter contains an invalid code, a 400 is returned.
 
-#### Example - create a default deck (unshuffled, all cards)
+### Example - create a default deck (unshuffled, all cards)
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks
 ```
 
-#### Example - create a shuffled deck (all cards)
+### Example - create a shuffled deck (all cards)
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks?shuffled=true
 ```
 
-#### Example - create an unshuffled deck with specific cards
+### Example - create an unshuffled deck with specific cards
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks?cards=AH,2C,3D,KS
 ```
 
-#### Example - create a shuffled deck with specific cards
+### Example - create a shuffled deck with specific cards
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks?cards=AH,2C,3D,KS&shuffled=true
 ```
 
-### Opening a deck
+## Opening a deck
 
 ```
 GET /api/v1alpha/decks/:deck_id
 ```
 
-#### Params
+### Params
 
 - `deck_id` (**required**) - the ID of the deck to open
 
-#### Responses
+### Responses
 
-<b>200 OK</b>
+**200 OK**
 
 ```json
 {
@@ -99,28 +99,28 @@ GET /api/v1alpha/decks/:deck_id
 }
 ```
 
-<b>400 Bad Request</b>
+**400 Bad Request**
 
 If the `deck_id` specified is not a valid UUID, 400 is returned.
 
-<b>404 Not Found</b>
+**404 Not Found**
 
 If the `deck_id` specified does not exist, 404 is returned.
 
-### Drawing cards from a deck
+## Drawing cards from a deck
 
 ```
 POST /api/v1alpha/decks/:deck_id/draw
 ```
 
-#### Params
+### Params
 
 - `deck_id` (**required**) - the ID of the deck to draw cards from.
 - `count` (**required**) - how many cards to draw from the deck. This must be a positive integer. If this number is bigger than the current number of cards in the deck, all the cards in the deck are returned.
 
-#### Responses
+### Responses
 
-<b>200 OK</b>
+**200 OK**
 
 ```json
 {
@@ -139,48 +139,48 @@ POST /api/v1alpha/decks/:deck_id/draw
 }
 ```
 
-<b>400 Bad Request</b>
+**400 Bad Request**
 
 A 400 status code is returned when:
 - The `deck_id` specified is not a valid UUID.
 - The `count` parameter is not specified, or it is not a valid positive integer.
 - The deck is already empty.
 
-<b>404 Not Found</b>
+**404 Not Found**
 
 If the `deck_id` specified does not exist, 404 is returned.
 
-#### Example - draw single card from deck
+### Example - draw single card from deck
 
 ```
 curl -X POST http://localhost:4000/api/v1alpha/decks/{deck_id}/draw?count=1
 ```
 
-### Deleting a deck
+## Deleting a deck
 
 ```
 DELETE /api/v1alpha/decks/:deck_id
 ```
 
-#### Params
+### Params
 
 - `deck_id` (**required**) - the ID of the deck to delete.
 
-#### Responses
+### Responses
 
-<b>204 No Content</b>
+**204 No Content**
 
 The deck was deleted successfully. No response body is returned.
 
-<b>400 Bad Request</b>
+**400 Bad Request**
 
 If the `deck_id` specified is not a valid UUID, 400 is returned.
 
-<b>404 Not Found</b>
+**404 Not Found**
 
 If the `deck_id` specified does not exist, 404 is returned.
 
-#### Example - delete a deck
+### Example - delete a deck
 
 ```
 curl -X DELETE http://localhost:4000/api/v1alpha/decks/{deck_id}

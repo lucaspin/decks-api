@@ -5,7 +5,7 @@ An HTTP API for managing decks of cards.
   - [Without docker](#without-docker)
 - [Running tests](#running-tests)
 - [Storage implementations](#storage-implementations)
-- [API reference](./docs/api.md)
+- [API](#api)
 
 
 ## Running the server
@@ -46,7 +46,6 @@ The persistence of decks is done through the [Storage interface](./pkg/storage/s
 - **In-memory**: the default one. Keeps all the decks in memory. All the decks are lost if the server is shutdown.
 - **Redis**: a Redis one. Note that this implementation has a few caveats currently, explained in [here](./pkg/storage/redis_storage.go). To use it, set the `DECK_STORAGE_TYPE` to `redis`.
 
-
 ## API
 
-See [docs/api.md](./docs/api.md) for the full API reference (authentication, endpoints, parameters, and examples).
+Routes, parameters, responses, and examples are in the [API reference](./docs/api.md).

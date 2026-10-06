@@ -90,5 +90,6 @@ Errors from the storage layer are sentinel values (`storage.ErrDeckNotFound`, `s
 ## Contribution guidance for agents
 
 - Run `gofmt -l .` and `make test` before committing.
-- Keep `docs/api.md` in sync with any change to API behavior, request/response shapes, and keep `README.md` in sync with storage backend changes.
+- Keep `docs/api.md` in sync with any change to API behavior or request/response shapes.
+- Keep `README.md` in sync with any change to storage backends.
 - Avoid introducing new dependencies without checking `go.mod`/`go.sum`; run `go mod tidy` if you do.
