@@ -181,6 +181,51 @@ func (s *RedisStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int) (
 	return cardList, nil
 }
 
+func (s *RedisStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	_, err := s.getShuffledAttribute(ctx, deckID)
+	if errors.Is(err, ErrDeckNotFound) {
+		return nil, err
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	cardsKey := keyForAttribute(deckID, "cards")
+	codes, err := s.Client.LRange(ctx, cardsKey, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	cardList, err := cards.CodesToCardList(codes)
+	if err != nil {
+		return nil, err
+	}
+
+	shuffledCards := cards.NewCardGenerator().Shuffle(cardList)
+
+	if _, err := s.Client.Del(ctx, cardsKey).Result(); err != nil {
+		return nil, err
+	}
+
+	if len(shuffledCards) > 0 {
+		if _, err := s.Client.RPush(ctx, cardsKey, cards.CardListToCodes(shuffledCards)).Result(); err != nil {
+			return nil, err
+		}
+	}
+
+	shuffledKey := keyForAttribute(deckID, "shuffled")
+	if _, err := s.Client.Set(ctx, shuffledKey, true, 0).Result(); err != nil {
+		return nil, err
+	}
+
+	return &Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    shuffledCards,
+	}, nil
+}
+
 func (s *RedisStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	// We don't really need the shuffled attribute here,
 	// but this is how we check that the deck exists before deleting it.
@@ -204,7 +249,7 @@ func keyForAttribute(deckID *uuid.UUID, attrName string) string {
 
 func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UUID) (bool, error) {
 	shuffledKey := keyForAttribute(deckID, "shuffled")
-	_, err := s.Client.Get(ctx, shuffledKey).Result()
+	value, err := s.Client.Get(ctx, shuffledKey).Result()
 
 	// When a key does not exist, Redis gives us a Nil reply
 	if errors.Is(err, redis.Nil) {
@@ -216,5 +261,5 @@ func (s *RedisStorage) getShuffledAttribute(ctx context.Context, deckID *uuid.UU
 		return false, err
 	}
 
-	return shuffledKey == "true", nil
+	return value == "1" || value == "true", nil
 }
