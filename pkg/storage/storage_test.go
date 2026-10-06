@@ -78,6 +78,61 @@ func Test__StorageTest(t *testing.T) {
 			require.Len(t, deck.Cards, 1)
 		})
 
+		t.Run(fmt.Sprintf("%s - update with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
+			ID := uuid.New()
+			_, err := storage.Update(context.Background(), &ID, []cards.Card{}, true)
+			require.ErrorIs(t, err, ErrDeckNotFound)
+		})
+
+		t.Run(fmt.Sprintf("%s - update replaces cards and sets shuffled", storageName), func(t *testing.T) {
+			initial := []cards.Card{
+				{Suit: cards.CardSuitSpades, Rank: cards.CardRank(1)},
+				{Suit: cards.CardSuitHearts, Rank: cards.CardRank(2)},
+				{Suit: cards.CardSuitDiamonds, Rank: cards.CardRank(3)},
+				{Suit: cards.CardSuitClubs, Rank: cards.CardRank(4)},
+				{Suit: cards.CardSuitSpades, Rank: cards.CardRank(5)},
+				{Suit: cards.CardSuitHearts, Rank: cards.CardRank(6)},
+			}
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			reordered := []cards.Card{
+				initial[3], initial[0], initial[5], initial[1], initial[4], initial[2],
+			}
+			updated, err := storage.Update(context.Background(), deck.DeckID, reordered, true)
+			require.NoError(t, err)
+			require.Equal(t, deck.DeckID, updated.DeckID)
+			require.True(t, updated.Shuffled)
+			require.Equal(t, reordered, updated.Cards)
+
+			got, err := storage.Get(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.Equal(t, deck.DeckID, got.DeckID)
+			require.True(t, got.Shuffled)
+			require.Equal(t, len(initial), len(got.Cards))
+			require.ElementsMatch(t, cards.CardListToCodes(initial), cards.CardListToCodes(got.Cards))
+			require.Equal(t, cards.CardListToCodes(reordered), cards.CardListToCodes(got.Cards))
+			require.NotEqual(t, cards.CardListToCodes(initial), cards.CardListToCodes(got.Cards))
+		})
+
+		t.Run(fmt.Sprintf("%s - update with empty card list is valid", storageName), func(t *testing.T) {
+			initial := []cards.Card{{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)}}
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			updated, err := storage.Update(context.Background(), deck.DeckID, []cards.Card{}, true)
+			require.NoError(t, err)
+			require.Equal(t, deck.DeckID, updated.DeckID)
+			require.True(t, updated.Shuffled)
+			require.Empty(t, updated.Cards)
+
+			got, err := storage.Get(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.Equal(t, deck.DeckID, got.DeckID)
+			require.True(t, got.Shuffled)
+			require.Empty(t, got.Cards)
+		})
+
 		t.Run(fmt.Sprintf("%s - delete with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
 			ID := uuid.New()
 			err := storage.Delete(context.Background(), &ID)
