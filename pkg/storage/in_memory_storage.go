@@ -69,6 +69,25 @@ func (s *InMemoryStorage) Draw(ctx context.Context, deckID *uuid.UUID, count int
 	return cards, nil
 }
 
+func (s *InMemoryStorage) Shuffle(ctx context.Context, deckID *uuid.UUID) (*Deck, error) {
+	deck, ok := s.decks[deckID.String()]
+	if !ok {
+		return nil, ErrDeckNotFound
+	}
+
+	shuffledCards := make([]cards.Card, len(deck.Cards))
+	copy(shuffledCards, deck.Cards)
+	shuffledCards = cards.NewCardGenerator().Shuffle(shuffledCards)
+
+	updated := Deck{
+		DeckID:   deckID,
+		Shuffled: true,
+		Cards:    shuffledCards,
+	}
+	s.decks[deckID.String()] = updated
+	return &updated, nil
+}
+
 func (s *InMemoryStorage) Delete(ctx context.Context, deckID *uuid.UUID) error {
 	if _, ok := s.decks[deckID.String()]; !ok {
 		return ErrDeckNotFound

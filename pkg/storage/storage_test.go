@@ -107,6 +107,59 @@ func Test__StorageTest(t *testing.T) {
 			err = storage.Delete(context.Background(), deck.DeckID)
 			require.ErrorIs(t, err, ErrDeckNotFound)
 		})
+
+		t.Run(fmt.Sprintf("%s - shuffle with deck that does not exist -> ErrDeckNotFound error", storageName), func(t *testing.T) {
+			ID := uuid.New()
+			_, err := storage.Shuffle(context.Background(), &ID)
+			require.ErrorIs(t, err, ErrDeckNotFound)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle empty deck -> stays empty and shuffled", storageName), func(t *testing.T) {
+			initial := []cards.Card{{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)}}
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			_, err = storage.Draw(context.Background(), deck.DeckID, 1)
+			require.NoError(t, err)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.Equal(t, deck.DeckID, shuffled.DeckID)
+			require.True(t, shuffled.Shuffled)
+			require.Empty(t, shuffled.Cards)
+
+			got, err := storage.Get(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.Equal(t, deck.DeckID, got.DeckID)
+			require.True(t, got.Shuffled)
+			require.Empty(t, got.Cards)
+		})
+
+		t.Run(fmt.Sprintf("%s - shuffle keeps the same cards and marks the deck shuffled", storageName), func(t *testing.T) {
+			initial := []cards.Card{
+				{Suit: cards.CardSuitClubs, Rank: cards.CardRank(3)},
+				{Suit: cards.CardSuitDiamonds, Rank: cards.CardRank(8)},
+				{Suit: cards.CardSuitHearts, Rank: cards.CardRank(1)},
+			}
+			deck, err := storage.Create(context.Background(), initial, false)
+			require.NoError(t, err)
+
+			drawn, err := storage.Draw(context.Background(), deck.DeckID, 1)
+			require.NoError(t, err)
+			require.Equal(t, initial[:1], drawn)
+
+			shuffled, err := storage.Shuffle(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.Equal(t, deck.DeckID, shuffled.DeckID)
+			require.True(t, shuffled.Shuffled)
+			require.ElementsMatch(t, initial[1:], shuffled.Cards)
+
+			got, err := storage.Get(context.Background(), deck.DeckID)
+			require.NoError(t, err)
+			require.Equal(t, deck.DeckID, got.DeckID)
+			require.True(t, got.Shuffled)
+			require.ElementsMatch(t, initial[1:], got.Cards)
+		})
 	})
 }
 
